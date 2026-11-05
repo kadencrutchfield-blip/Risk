@@ -9,7 +9,7 @@ A turn-based conquest game you play with friends **over text**, the way you'd pl
 - One person opens the link, enters 2–6 player names, picks the options, and taps **Start game**.
 - On your turn: **reinforce → attack → fortify**, then tap **End turn & send**.
 - The share sheet opens. Send the link to your group chat or the next player.
-- The next player taps the link and takes their turn. Keep going until one player owns the whole map.
+- The next player taps the link and takes their turn. Keep going until only one player is left standing.
 
 The whole game state is stored in the link itself, so you don't need a server, accounts, or an app install. Dice rolls come from a seed stored in the link, so reopening an old link replays the same rolls instead of giving you a fresh chance.
 
