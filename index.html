@@ -99,6 +99,9 @@ table.reg td:last-child{text-align:right;color:var(--accent);font-weight:700}
 #toast.show{opacity:1;transform:translateX(-50%)}
 .menu .btn{display:block;width:100%;margin:6px 0;text-align:left}
 .hint{font-size:12px;color:var(--muted);margin-top:8px}
+.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1;background:transparent;border-radius:9px;padding:9px 6px;font-weight:700;color:var(--muted);font-size:14px}
+.seg button.on{background:var(--bg3);color:var(--text);box-shadow:0 0 0 1px var(--line)}
 </style>
 </head>
 <body>
@@ -118,8 +121,10 @@ table.reg td:last-child{text-align:right;color:var(--accent);font-weight:700}
 <script>
 'use strict';
 /* =====================  MAP DATA  ===================== */
-// Hex grid (odd rows shifted right). Each letter = one territory, '.' = sea.
-const GRID = [
+// Hex grids (odd rows shifted right). Each letter = one territory, '.' = sea.
+// terr: letter -> [name, region index]. sea: lanes between territories that don't touch by land.
+const MAPS = [
+{ name:"Classic Isles", grid:[
 "....................",
 "..AAA.BBB....EEFFF..",
 ".AAACCBB....EEEFFGG.",
@@ -135,46 +140,82 @@ const GRID = [
 "..PRRQS...TTTUUV.abb",
 "..RRRSS....WWUVV....",
 "...RSS.....WWW.V....",
-"...................."];
-const TERR = {
+"...................."],
+  terr:{
   A:["Glacier Bay",0], B:["Rime Peaks",0], C:["Whitewood",0], D:["Coldharbor",0],
   E:["Stormcrest",1], F:["Eagle's Rest",1], G:["Thornvale",1], H:["Ironhold",1], I:["Granite Pass",1], J:["Windmere",1],
   K:["Oakshire",2], L:["Millbrook",2], M:["Stonebridge",2], N:["Westmarch",2], O:["Crossroads",2],
   P:["Dune Sea",3], Q:["Mirage Flats",3], R:["Scorpion Gulch",3], S:["Oasis",3],
   T:["Jade Cove",4], U:["Palm Reach",4], V:["Coral Point",4], W:["Lagoon",4],
-  X:["Cinder Ridge",5], Y:["Smolder",5], Z:["Obsidian Fields",5], a:["Ember Coast",5], b:["Ashfall",5]
-};
-const REG = [
-  {n:"Frostmark", b:2}, {n:"Highreach", b:3}, {n:"Heartland", b:3},
-  {n:"Sunscar", b:2}, {n:"Emerald Isles", b:2}, {n:"Ashlands", b:3}
+  X:["Cinder Ridge",5], Y:["Smolder",5], Z:["Obsidian Fields",5], a:["Ember Coast",5], b:["Ashfall",5]},
+  reg:[{n:"Frostmark",b:2},{n:"Highreach",b:3},{n:"Heartland",b:3},{n:"Sunscar",b:2},{n:"Emerald Isles",b:2},{n:"Ashlands",b:3}],
+  sea:[["B","E"],["H","L"],["J","X"],["M","T"],["S","W"],["V","a"],["A","P"]] },
+{ name:"Grand Archipelago", grid:[
+"............................",
+"...AAE.....FFJJ.KK....LL....",
+"..AAAEEEBB.FFFJJKGG..PLLLM..",
+".DAAAEEBB.FFFHHGGGG.PPLLMMM.",
+".DDDACCBBB.IIHHHGGG.NNNLOMM.",
+".DDCCCCBB.II.HHHG..NNNNOOO..",
+".....CCB.............NNNOO..",
+"............................",
+"...QQQSS....WWZZZ....bbbff..",
+".QQQQVSSSU.WWWZXXX..bbbbff..",
+"..QQQVVSUU..WWYXXX.eebbbcff.",
+"..TTVVRRR..aaYYXX.eeddbcccc.",
+"...TTTVRRR..aaYY...edddccc..",
+".....................ddcc...",
+".....ggk...........ll.......",
+"...ggggkk.....mooollll......",
+"..iigggkhhh...mmoollllnn....",
+".iiijjghhh...mmmmppllnn.....",
+"...ijjjhh....mmmmppppnn.....",
+"............................",],
+  terr:{
+  A:["Glacier Bay",0], B:["Rime Peaks",0], C:["Whitewood",0], D:["Coldharbor",0], E:["Snowmere",0],
+  F:["Stormcrest",1], G:["Eagle's Rest",1], H:["Ironhold",1], I:["Granite Pass",1], J:["Windmere",1], K:["Thornvale",1],
+  L:["Gale Point",2], M:["Saltcliff",2], N:["Breakwater",2], O:["Gullhaven",2], P:["Squall Rock",2],
+  Q:["Westmarch",3], R:["Millbrook",3], S:["Oakshire",3], T:["Fernwick",3], U:["Crossroads",3], V:["Stonebridge",3],
+  W:["Hollowmere",4], X:["Lantern Vale",4], Y:["Gloamwood",4], Z:["Mistfen",4], a:["Willowdeep",4],
+  b:["Dune Sea",5], c:["Mirage Flats",5], d:["Scorpion Gulch",5], e:["Oasis",5], f:["Sandspire",5],
+  g:["Jade Cove",6], h:["Palm Reach",6], i:["Lagoon",6], j:["Turtle Bay",6], k:["Mango Grove",6],
+  l:["Coral Point",7], m:["Reefwatch",7], n:["Pearl Shoals",7], o:["Kelp Forest",7], p:["Starfish Key",7]},
+  reg:[{n:"Frostmark",b:2},{n:"Highreach",b:3},{n:"Stormcoast",b:2},{n:"Heartland",b:3},{n:"The Hollows",b:3},{n:"Sunscar",b:3},{n:"Emerald Isles",b:2},{n:"Coral Reach",b:2}],
+  sea:[["B","F"],["B","S"],["G","N"],["G","Z"],["N","b"],["U","W"],["R","k"],["X","e"],["Y","m"],["d","l"],["h","m"]] }
 ];
-// Sea lanes between territories that don't touch by land
-const SEA = [["B","E"],["H","L"],["J","X"],["M","T"],["S","W"],["V","a"],["A","P"]];
-const COLORS = ["#e5484d","#3e8ef7","#30a46c","#e6a700","#8e4ec6","#f76b15"];
-const CNAMES = ["Red","Blue","Green","Gold","Purple","Orange"];
-const START_ARMIES = {2:24,3:20,4:16,5:14,6:12};
+const COLORS = ["#e5484d","#3e8ef7","#30a46c","#e6a700","#8e4ec6","#f76b15","#8b95a7"];
+const CNAMES = ["Red","Blue","Green","Gold","Purple","Orange","Neutral"];
+const START_ARMIES = {2:24,3:20,4:16,5:14,6:12,7:12};
 const CARD_ICONS = ["⚔️","🛡️","🏹","⭐"];
 const CARD_NAMES = ["Sword","Shield","Bow","Wild"];
 
 /* ===================== GEOMETRY ===================== */
-const H = GRID.length, W = GRID[0].length, R = 20, SQ = Math.sqrt(3);
-const LET = Object.keys(TERR);
-const IDX = Object.fromEntries(LET.map((l,i)=>[l,i]));
-const T = LET.map((l,i)=>({i, l, name:TERR[l][0], reg:TERR[l][1], cells:[], adj:new Set()}));
+const R = 20, SQ = Math.sqrt(3);
 const DIR_E = [[0,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0]];   // edge k -> neighbour (even rows)
 const DIR_O = [[0,1],[1,1],[1,0],[0,-1],[-1,0],[-1,1]];     // (odd rows)
-const at = (r,c)=> (r<0||c<0||r>=H||c>=W) ? "." : GRID[r][c];
 const ctr = (r,c)=> [SQ*R*(c+0.5*(r&1)) + SQ*R/2, 1.5*R*r + R];
 const corner = (x,y,k)=>{const a=Math.PI/180*(60*k-30); return [x+R*Math.cos(a), y+R*Math.sin(a)];};
-for(let r=0;r<H;r++) for(let c=0;c<W;c++){
-  const l = GRID[r][c]; if(l===".") continue;
-  const t = T[IDX[l]]; t.cells.push([r,c]);
-  const D = (r&1)?DIR_O:DIR_E;
-  for(const [dr,dc] of D){ const n = at(r+dr,c+dc); if(n!=="." && n!==l) t.adj.add(IDX[n]); }
+let GRID, REG, SEA, H, W, LET, IDX, T, NT, regionTerr, mapId = -1;
+const at = (r,c)=> (r<0||c<0||r>=H||c>=W) ? "." : GRID[r][c];
+function useMap(m){
+  if(!MAPS[m]) m = 0;
+  if(m===mapId) return;
+  mapId = m; const M = MAPS[m];
+  GRID = M.grid; REG = M.reg; SEA = M.sea; H = GRID.length; W = GRID[0].length;
+  LET = Object.keys(M.terr);
+  IDX = Object.fromEntries(LET.map((l,i)=>[l,i]));
+  T = LET.map((l,i)=>({i, l, name:M.terr[l][0], reg:M.terr[l][1], cells:[], adj:new Set()}));
+  for(let r=0;r<H;r++) for(let c=0;c<W;c++){
+    const l = GRID[r][c]; if(l===".") continue;
+    const t = T[IDX[l]]; t.cells.push([r,c]);
+    const D = (r&1)?DIR_O:DIR_E;
+    for(const [dr,dc] of D){ const n = at(r+dr,c+dc); if(n!=="." && n!==l) t.adj.add(IDX[n]); }
+  }
+  for(const [x,y] of SEA){ T[IDX[x]].adj.add(IDX[y]); T[IDX[y]].adj.add(IDX[x]); }
+  NT = T.length;
+  regionTerr = REG.map((_,ri)=>T.filter(t=>t.reg===ri).map(t=>t.i));
+  buildMap();
 }
-for(const [x,y] of SEA){ T[IDX[x]].adj.add(IDX[y]); T[IDX[y]].adj.add(IDX[x]); }
-const NT = T.length;
-const regionTerr = REG.map((_,ri)=>T.filter(t=>t.reg===ri).map(t=>t.i));
 
 /* ===================== HELPERS ===================== */
 const $ = s=>document.querySelector(s);
@@ -225,22 +266,30 @@ function income(p){
 }
 const tradeValue = k=> k<6 ? [4,6,8,10,12,15][k] : 15 + 5*(k-5);
 function log(text){ S.log.push([S.turn, text]); if(S.log.length>40) S.log.splice(0, S.log.length-40); }
-function nextAlive(i){ let j=i; do{ j=(j+1)%S.p.length; }while(S.p[j].out && j!==i); return j; }
+function nextAlive(i){ let j=i; do{ j=(j+1)%S.p.length; }while((S.p[j].out||S.p[j].nt) && j!==i); return j; }
+const humansLeft = ()=> S.p.filter(p=>!p.out && !p.nt).length;
 
-function newGame(names){
-  const n = names.length;
-  S = {v:1, p:names.map((nm,i)=>({n:nm, c:i, cards:[], out:false})), o:Array(NT).fill(0), a:Array(NT).fill(1),
+function newGame(names, opt={}){
+  const map = opt.map||0; useMap(map);
+  S = {v:2, m:map, p:names.map((nm,i)=>({n:nm, c:i, cards:[], out:false})), o:Array(NT).fill(0), a:Array(NT).fill(1),
        cur:0, ph:"start", rf:0, conq:false, trades:0, seed:(Math.random()*2**31)|0, turn:1, win:-1, mv:null, log:[]};
+  if(opt.neutral && names.length===2) S.p.push({n:"Neutral", c:6, cards:[], out:false, nt:true});
+  const n = S.p.length;
   const order = [...Array(NT).keys()];
   for(let i=order.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
-  // deal starting from the last player so later players get any extra territory
+  // deal starting from the last seat so later players get any extra territory
   order.forEach((t,k)=>{ S.o[t] = (n-1 - (k % n) + n) % n; });
+  const total = Math.round(START_ARMIES[n] * NT / 28);
+  if(opt.draft) S.dr = Array(n).fill(0);
   for(let p=0;p<n;p++){
     const mine = order.filter(t=>S.o[t]===p);
-    let extra = START_ARMIES[n] - mine.length;
+    let extra = total - mine.length;
+    if(opt.draft && !S.p[p].nt){ S.dr[p] = extra; continue; }
     while(extra-->0) S.a[mine[Math.floor(rng()*mine.length)]]++;
   }
-  log("The battle for the isles begins! Turn order: " + S.p.map((_,i)=>"@"+i).join(" → "));
+  log(`The battle for ${MAPS[map].name} begins! Turn order: ` + S.p.filter(p=>!p.nt).map(p=>"@"+p.c).join(" → ")
+      + (opt.neutral && names.length===2 ? ". A neutral army holds some lands." : "")
+      + (opt.draft ? " Everyone places their starting troops first." : ""));
 }
 
 async function save(){
@@ -251,9 +300,10 @@ async function save(){
 
 /* ===================== GAME ACTIONS ===================== */
 function startTurn(){
-  const inc = income(me());
-  S.ph = "reinforce"; S.rf = inc.total; S.conq = false; S.mv = null;
   UI.undo = []; UI.sel = UI.tgt = -1; UI.dice = null; UI.battle = null;
+  S.conq = false; S.mv = null;
+  if(S.dr && S.dr[me()]>0){ S.ph = "deploy"; S.rf = S.dr[me()]; S.dr[me()] = 0; save(); return; }
+  S.ph = "reinforce"; S.rf = income(me()).total;
   save();
   if(P(me()).cards.length >= 5){ UI.mustTrade = true; openCards(); }
 }
@@ -311,11 +361,11 @@ function capture(f, t, dice){
     P(loser).out = true;
     const got = P(loser).cards.length;
     P(me()).cards.push(...P(loser).cards); P(loser).cards = [];
-    log(`@${me()} eliminated @${loser}!` + (got?` and took ${got} card${got>1?"s":""}`:""));
+    log(`@${me()} eliminated @${loser}` + (got?` and took ${got} card${got>1?"s":""}!`:"!"));
   }
-  if(owned(me())===NT){
+  if(humansLeft()===1){
     S.a[t] = S.a[f]-1; S.a[f] = 1; S.win = me(); S.ph = "over";
-    log(`🏆 @${me()} conquered every territory and wins the game!`);
+    log(`🏆 @${me()} defeated every rival and wins the game!`);
     save(); UI.view = "win"; render(); showWin(); return;
   }
   S.mv = {f, t, min:Math.min(dice, S.a[f]-1)}; S.ph = "move";
@@ -348,6 +398,7 @@ function endTurn(){
   flushBattle();
   const pl = P(me());
   if(S.conq){ const r=rng(); pl.cards.push(r<0.07?3:Math.floor(rng()*3)); }
+  if(S.ph==="deploy") log(`@${me()} placed their starting troops`);
   const prev = me();
   S.cur = nextAlive(prev); S.turn++; S.ph = "start"; S.rf = 0; S.conq = false; S.mv = null;
   UI.sel = UI.tgt = -1; UI.dice = null; UI.undo = []; UI.playing = false; UI.view = "sent";
@@ -467,7 +518,7 @@ function renderTop(){
 function renderPlayers(){
   if(!S){ $("#players").innerHTML=""; return; }
   $("#players").innerHTML = S.p.map((p,i)=>`<div class="pchip ${i===S.cur&&S.win<0?"cur":""} ${p.out?"out":""}">
-    <span class="dot" style="background:${COLORS[p.c]}"></span>${esc(p.n)} <small>${owned(i)}🏳 ${troops(i)}⚔ ${p.cards.length}🃏</small></div>`).join("");
+    <span class="dot" style="background:${COLORS[p.c]}"></span>${esc(p.n)} <small>${owned(i)}🏳 ${troops(i)}⚔${p.nt?"":" "+p.cards.length+"🃏"}</small></div>`).join("");
 }
 function renderPanel(){
   const el = $("#panel");
@@ -479,8 +530,16 @@ function renderPanel(){
       <div class="row"><button class="btn primary" data-act="claim">I'm ${esc(P(S.cur).n)} — play</button><button class="btn" data-act="share">Send link</button></div>`; return;
   }
   const sel = UI.sel>=0 ? T[UI.sel] : null;
-  let h = steps();
-  if(S.ph==="reinforce"){
+  let h = S.ph==="deploy" ? "" : steps();
+  if(S.ph==="deploy"){
+    h += `<div class="ph">Setup · Starting troops</div>`;
+    h += S.rf>0 ? `<div class="msg">Place your <b>${S.rf}</b> starting troop${S.rf>1?"s":""}. Tap your territories to add one at a time.</div>
+      <div class="row">${sel?`<button class="btn primary" data-act="placeall">All ${S.rf} → ${esc(sel.name)}</button>`:""}
+        <button class="btn" data-act="undo" ${UI.undo.length?"":"disabled"}>Undo</button></div>
+      <div class="hint">No attacking this round. Battles start once everyone has set up.</div>`
+      : `<div class="msg">All set up.</div><div class="row"><button class="btn" data-act="undo" ${UI.undo.length?"":"disabled"}>Undo</button>
+        <button class="btn primary" data-act="endturn">Done &amp; send</button></div>`;
+  } else if(S.ph==="reinforce"){
     const inc = income(me()), cards=P(me()).cards.length, canTrade=!!findSet(P(me()).cards);
     h += `<div class="ph">1 · Reinforce</div>`;
     if(S.rf>0){
@@ -533,7 +592,7 @@ function logHtml(entries){
   return `<ul class="log">${entries.map(([tn,s])=>`<li><span class="tn">T${tn}</span>${fmt(s)}</li>`).join("")}</ul>`;
 }
 function showPass(){
-  const c=S.cur, alive=S.p.filter(p=>!p.out).length;
+  const c=S.cur, alive=humansLeft();
   const recent = S.log.filter(([tn])=>tn > S.turn - alive);
   const mid = S.ph!=="start";
   openSheet(`<h2>${mid?"Turn in progress":"Your move"}, ${pname(c)}</h2>
@@ -597,7 +656,8 @@ function showRegions(){
 }
 function showRules(){
   openSheet(`<h2>How to play</h2><ol class="rules">
-    <li><b>Goal:</b> conquer every territory on the map.</li>
+    <li><b>Goal:</b> knock out every rival player. You don't have to wipe out the gray neutral army.</li>
+    <li><b>Setup:</b> territories are dealt at random. Starting troops are either scattered randomly or, if you chose “place them yourselves”, each player spends their first turn placing them.</li>
     <li><b>Reinforce:</b> each turn you get troops = your territories ÷ 3 (min 3), plus region bonuses, plus card sets.</li>
     <li><b>Attack:</b> pick one of your territories with 2+ troops, then a neighboring enemy. Dashed lines are sea lanes. You roll up to 3 dice, the defender up to 2. Highest dice are compared in pairs — the higher die wins, ties go to the defender.</li>
     <li><b>Capture:</b> when a territory hits 0 troops it's yours. Move in at least as many troops as dice you rolled.</li>
@@ -607,11 +667,19 @@ function showRules(){
     <li><b>No take-backs:</b> dice are pre-seeded in the link, so reopening an old link replays the same rolls.</li>
     </ol><div class="row"><button class="btn" data-act="close">Got it</button></div>`);
 }
+const setupOpt = {map:0, draft:false, neutral:true};
+function seg(k, opts){
+  return `<div class="seg">${opts.map(([v,l])=>`<button class="${setupOpt[k]===v?"on":""}" data-act="opt" data-k="${k}" data-v="${v}">${l}</button>`).join("")}</div>`;
+}
 function showSetup(){
   const names = (showSetup.names ||= ["",""]);
-  openSheet(`<h2>New game</h2><p>2–6 players. Everyone gets random territories, then you take turns by texting the link.</p>
+  openSheet(`<h2>New game</h2><p>2–6 players. Territories are dealt at random, then you take turns by texting the link.</p>
     ${names.map((n,i)=>`<div class="prow"><span class="dot" style="background:${COLORS[i]}"></span><input type="text" maxlength="14" placeholder="${CNAMES[i]} player name" value="${esc(n)}" data-i="${i}">${names.length>2?`<button class="x" data-act="rmp" data-i="${i}" aria-label="Remove">×</button>`:""}</div>`).join("")}
-    <div class="row" style="margin-top:10px">${names.length<6?`<button class="btn" data-act="addp">+ Add player</button>`:""}<button class="btn primary" data-act="start">Start game</button></div>
+    ${names.length<6?`<div class="row" style="margin-top:6px"><button class="btn ghost" data-act="addp">+ Add player</button></div>`:""}
+    <h3>Map</h3>${seg("map",[[0,"Classic · 28"],[1,"Grand · 42"]])}
+    <h3>Starting troops</h3>${seg("draft",[[false,"Random"],[true,"Place them yourselves"]])}
+    ${names.length===2?`<h3>Neutral army</h3>${seg("neutral",[[true,"On"],[false,"Off"]])}<div class="hint">A gray army that holds some territory and never attacks. Makes 2-player games less of a race.</div>`:""}
+    <div class="row" style="margin-top:16px"><button class="btn primary" data-act="start">Start game</button></div>
     <div class="hint">The first name goes first. <a href="#" data-act="rules" style="color:var(--accent)">How to play</a></div>`, !!S);
   $("#sheet").querySelectorAll("input[data-i]").forEach(inp=>inp.oninput=()=>{names[+inp.dataset.i]=inp.value;});
 }
@@ -635,9 +703,9 @@ async function copy(){
 svg.addEventListener("click", e=>{
   const g = e.target.closest("g.t"); if(!g || !S || !UI.playing || S.win>=0) return;
   const t = +g.dataset.t, mine = S.o[t]===me();
-  if(S.ph==="reinforce"){
+  if(S.ph==="reinforce" || S.ph==="deploy"){
     if(!mine) return toast("That's not your territory");
-    if(S.rf<=0) return toast("All troops placed — tap Attack →");
+    if(S.rf<=0) return toast(S.ph==="deploy" ? "All troops placed — tap Done" : "All troops placed — tap Attack →");
     UI.sel = t; place(t,1); return;
   }
   if(S.ph==="attack"){
@@ -695,12 +763,13 @@ document.addEventListener("click", e=>{
     case "togglenames": svg.classList.toggle("nonames"); closeSheet(); break;
     case "rules": showRules(); break;
     case "newgame": showSetup.names = S ? S.p.map(p=>p.n) : ["",""]; showSetup(); break;
+    case "opt": { const k=b.dataset.k, v=b.dataset.v; setupOpt[k] = k==="map" ? +v : v==="true"; showSetup(); break; }
     case "addp": showSetup.names.push(""); showSetup(); break;
     case "rmp": showSetup.names.splice(+b.dataset.i,1); showSetup(); break;
     case "start": {
       const names = showSetup.names.map((n,i)=>n.trim() || CNAMES[i]);
       if(new Set(names.map(n=>n.toLowerCase())).size!==names.length) return toast("Give everyone a different name");
-      newGame(names); UI.playing=false; UI.view="pass"; save().then(()=>{ render(); showPass(); });
+      newGame(names, setupOpt); UI.playing=false; UI.view="pass"; save().then(()=>{ render(); showPass(); });
       break; }
   }
 });
@@ -712,6 +781,7 @@ async function load(){
   if(!m){ S=null; render(); showSetup(); return; }
   try{
     S = await unpack(m[1]);
+    useMap(S.m||0);
     link = location.href;
     UI.playing=false; UI.sel=UI.tgt=-1; UI.dice=null; UI.undo=[];
     render();
@@ -723,7 +793,7 @@ async function load(){
   }
 }
 window.addEventListener("hashchange", load);
-buildMap();
+useMap(0);
 load();
 </script>
 </body>
