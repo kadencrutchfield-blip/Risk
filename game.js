@@ -584,7 +584,7 @@ function renderTop(){
   if(!S){ ti.innerHTML=""; return; }
   const c=P(S.cur);
   ti.innerHTML = S.win>=0 ? `<span class="dot" style="background:${COLORS[P(S.win).c]}"></span><b>${esc(P(S.win).n)} won!</b>`
-    : `Turn ${S.turn} <span class="dot" style="background:${COLORS[c.c]}"></span><b>${esc(c.n)}</b>`;
+    : `<span class="tnum">Turn ${S.turn}</span> <span class="dot" style="background:${COLORS[c.c]}"></span><b>${esc(c.n)}</b>`;
 }
 function renderPlayers(){
   if(!S){ $("#players").innerHTML=""; return; }
