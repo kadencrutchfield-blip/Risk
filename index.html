@@ -32,6 +32,14 @@ main{flex:1;display:flex;flex-direction:column;max-width:900px;width:100%;margin
 #map{width:100%;height:auto;display:block;border-radius:14px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
 #map .t{cursor:pointer}
 #map .t polygon{stroke-width:.8;transition:opacity .15s}
+#map .t{transition:opacity .15s}
+#map .t circle.pl{stroke-width:1}
+#map .lane{stroke:#cfe3ff;stroke-opacity:.5;stroke-width:1.6;stroke-dasharray:3 4;stroke-linecap:round}
+#map .lane.in{stroke-opacity:.28}
+#map .lbl{fill:#fff;fill-opacity:.55;font-size:7.5px;font-weight:800;letter-spacing:1px;text-anchor:middle;pointer-events:none}
+#map .lbl.sys{font-size:6.5px;letter-spacing:.5px}
+#map .spin{transform-box:fill-box;transform-origin:center;animation:spin 6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
 #map .t.dim{opacity:.38}
 #map .ol{fill:none;stroke:transparent;stroke-width:3;stroke-linecap:round;pointer-events:none}
 #map .ol.sel{stroke:#fff;stroke-width:3.5}
@@ -181,7 +189,25 @@ const MAPS = [
   g:["Jade Cove",6], h:["Palm Reach",6], i:["Lagoon",6], j:["Turtle Bay",6], k:["Mango Grove",6],
   l:["Coral Point",7], m:["Reefwatch",7], n:["Pearl Shoals",7], o:["Kelp Forest",7], p:["Starfish Key",7]},
   reg:[{n:"Frostmark",b:2},{n:"Highreach",b:3},{n:"Stormcoast",b:2},{n:"Heartland",b:3},{n:"The Hollows",b:3},{n:"Sunscar",b:3},{n:"Emerald Isles",b:2},{n:"Coral Reach",b:2}],
-  sea:[["B","F"],["B","S"],["G","N"],["G","Z"],["N","b"],["U","W"],["R","k"],["X","e"],["Y","m"],["d","l"],["h","m"]] }
+  sea:[["B","F"],["B","S"],["G","N"],["G","Z"],["N","b"],["U","W"],["R","k"],["X","e"],["Y","m"],["d","l"],["h","m"]] },
+{ name:"Star Systems", space:true, w:760, h:560,
+  // each system: 5 planets on a ring around its star, starting at angle a0 (degrees), 72 deg apart
+  // planet: [name, radius, has rings]
+  sys:[
+    {n:"Aurelia", b:2, x:115, y:115, a0:-90, ring:70, star:"#ffd36b", pl:[["Aurel Prime",19,0],["Halcyon",16,1],["Cinder",17,0],["Vesper",15,0],["Lumen",18,0]]},
+    {n:"Kestrel", b:3, x:380, y:105, a0:-90, ring:70, star:"#a8dcff", pl:[["Kestra",18,0],["Zephyr IX",16,0],["Frostfall",19,1],["Tarn",15,0],["Obsidia",17,0]]},
+    {n:"Hollow Drift", b:3, x:645, y:115, a0:-90, ring:70, star:"#cfa8ff", pl:[["Rook",17,0],["Echo",16,0],["Gloam",19,0],["Nadir",15,1],["Wraith",18,0]]},
+    {n:"Ember Cluster", b:3, x:115, y:445, a0:90, ring:70, star:"#ff8a65", pl:[["Pyra",18,0],["Kiln",16,0],["Scoria",17,1],["Brimstone",19,0],["Ash Moon",15,0]]},
+    {n:"Tidewater", b:3, x:380, y:455, a0:90, ring:70, star:"#7de8d6", pl:[["Marisol",19,1],["Kelpie",15,0],["Undine",17,0],["Brine",16,0],["Coralis",18,0]]},
+    {n:"Frontier Verge", b:2, x:645, y:445, a0:90, ring:70, star:"#ffbe6b", pl:[["Lastlight",18,0],["Waypoint",16,0],["Drift",17,0],["Farhold",19,1],["Outpost K",15,0]]}
+  ],
+  // hyperspace routes between systems ("system.planet")
+  lanes:[["0.1","1.4"],["0.2","1.3"],["1.1","2.4"],["0.2","3.3"],["3.4","4.1"],["3.3","4.2"],["4.3","5.2"],["2.2","5.3"]],
+  worm:[["3.1","2.1"]],
+  // obstacles (decoration — the routes above already avoid them)
+  hole:{x:380, y:280, r:24},
+  belts:[[[506,118],[522,180],[508,252]], [[508,418],[524,490],[506,562]]],
+  nebulas:[{x:70,y:280,rx:68,ry:44,c:"#b06bff"}, {x:600,y:282,rx:44,ry:36,c:"#ff6bb5"}] }
 ];
 const COLORS = ["#e5484d","#3e8ef7","#30a46c","#e6a700","#8e4ec6","#f76b15","#8b95a7"];
 const CNAMES = ["Red","Blue","Green","Gold","Purple","Orange","Neutral"];
@@ -201,6 +227,7 @@ function useMap(m){
   if(!MAPS[m]) m = 0;
   if(m===mapId) return;
   mapId = m; const M = MAPS[m];
+  if(M.space){ useSpace(M); return; }
   GRID = M.grid; REG = M.reg; SEA = M.sea; H = GRID.length; W = GRID[0].length;
   LET = Object.keys(M.terr);
   IDX = Object.fromEntries(LET.map((l,i)=>[l,i]));
@@ -213,6 +240,23 @@ function useMap(m){
   }
   for(const [x,y] of SEA){ T[IDX[x]].adj.add(IDX[y]); T[IDX[y]].adj.add(IDX[x]); }
   NT = T.length;
+  regionTerr = REG.map((_,ri)=>T.filter(t=>t.reg===ri).map(t=>t.i));
+  buildMap();
+}
+
+function useSpace(M){
+  GRID = null; SEA = []; REG = M.sys.map(s=>({n:s.n, b:s.b}));
+  T = []; IDX = {};
+  M.sys.forEach((s,si)=>s.pl.forEach(([name,r,ring],k)=>{
+    const a = (s.a0 + k*72) * Math.PI/180, id = T.length;
+    IDX[si+"."+k] = id;
+    T.push({i:id, l:si+"."+k, name, reg:si, x:s.x + s.ring*Math.cos(a), y:s.y + s.ring*Math.sin(a), r, ring, cells:[], adj:new Set()});
+  }));
+  const link2 = (a,b)=>{ T[IDX[a]].adj.add(IDX[b]); T[IDX[b]].adj.add(IDX[a]); };
+  // within a system you orbit to the next planet; the star blocks the middle
+  M.sys.forEach((s,si)=>{ for(let k=0;k<5;k++) link2(si+"."+k, si+"."+((k+1)%5)); });
+  for(const [a,b] of M.lanes.concat(M.worm)) link2(a,b);
+  LET = T.map(t=>t.l); NT = T.length;
   regionTerr = REG.map((_,ri)=>T.filter(t=>t.reg===ri).map(t=>t.i));
   buildMap();
 }
@@ -408,7 +452,76 @@ function endTurn(){
 /* ===================== MAP RENDER ===================== */
 const svg = $("#map");
 const els = {g:[], ol:[], badge:[], num:[]};
+function finishMap(){
+  els.g = [...svg.querySelectorAll("g.t")];
+  els.ol = [...svg.querySelectorAll("path.ol")];
+  els.badge = [...svg.querySelectorAll("g.badge > g")];
+  els.num = els.badge.map(b=>b.querySelector("text"));
+  if(window.innerWidth < 640) svg.classList.add("nonames");
+}
+function buildSpace(M){
+  let seed = 11; const rnd = ()=> (seed = (seed*16807) % 2147483647) / 2147483647;
+  const f = v=>v.toFixed(1);
+  let bg = "", stars = "", rocks = "", orbits = "", suns = "", lanes = "", worm = "", planets = "", outlines = "", badges = "", names = "";
+  for(let i=0;i<220;i++) stars += `<circle cx="${f(rnd()*M.w)}" cy="${f(rnd()*M.h)}" r="${f(.3+rnd()*1.1)}" opacity="${f(.25+rnd()*.7)}"/>`;
+  for(const n of M.nebulas){
+    bg += `<ellipse cx="${n.x}" cy="${n.y}" rx="${n.rx}" ry="${n.ry}" fill="${n.c}" opacity=".45" filter="url(#blur)"/>
+           <ellipse cx="${n.x+n.rx*.2}" cy="${n.y-n.ry*.15}" rx="${n.rx*.6}" ry="${n.ry*.55}" fill="#fff" opacity=".12" filter="url(#blur)"/>`;
+  }
+  for(const pts of M.belts){
+    for(let i=0;i<70;i++){
+      const u = rnd()*(pts.length-1), k = Math.min(pts.length-2, Math.floor(u)), t = u-k;
+      const x = pts[k][0] + (pts[k+1][0]-pts[k][0])*t + (rnd()-.5)*26, y = pts[k][1] + (pts[k+1][1]-pts[k][1])*t + (rnd()-.5)*10;
+      const r = 1.2 + rnd()*3.2, sides = 5 + Math.floor(rnd()*3);
+      const poly = Array.from({length:sides},(_,j)=>{const a=j/sides*Math.PI*2, rr=r*(.7+rnd()*.5); return f(x+rr*Math.cos(a))+","+f(y+rr*Math.sin(a));}).join(" ");
+      rocks += `<polygon points="${poly}" fill="hsl(25 ${8+rnd()*14|0}% ${38+rnd()*22|0}%)"/>`;
+    }
+  }
+  const h = M.hole;
+  bg += `<circle cx="${h.x}" cy="${h.y}" r="${h.r*2.6}" fill="url(#holeGlow)"/>
+    <ellipse cx="${h.x}" cy="${h.y}" rx="${h.r*2}" ry="${h.r*.55}" fill="none" stroke="url(#disk)" stroke-width="5" transform="rotate(-14 ${h.x} ${h.y})"/>
+    <circle cx="${h.x}" cy="${h.y}" r="${h.r}" fill="#000" stroke="#ffb46b" stroke-opacity=".8" stroke-width="1.5"/>
+    <text x="${h.x}" y="${h.y+h.r+20}" class="lbl">BLACK HOLE</text>`;
+  M.sys.forEach(s=>{
+    orbits += `<circle cx="${s.x}" cy="${s.y}" r="${s.ring}" fill="none" stroke="#fff" stroke-opacity=".09" stroke-width="1"/>`;
+    suns += `<circle cx="${s.x}" cy="${s.y}" r="26" fill="${s.star}" opacity=".18" filter="url(#blur)"/><circle cx="${s.x}" cy="${s.y}" r="9" fill="${s.star}"/>
+      <circle cx="${s.x}" cy="${s.y}" r="5" fill="#fff" opacity=".8"/>
+      <text x="${s.x}" y="${s.y+20}" class="lbl sys">${esc(s.n.toUpperCase())}</text><text x="${s.x}" y="${s.y+29}" class="lbl sys">+${s.b}</text>`;
+  });
+  const P2 = id=>T[IDX[id]];
+  M.sys.forEach((s,si)=>{ for(let k=0;k<5;k++){ const a=P2(si+"."+k), b=P2(si+"."+((k+1)%5));
+    lanes += `<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" class="lane in"/>`; } });
+  for(const [x,y] of M.lanes){ const a=P2(x), b=P2(y); lanes += `<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" class="lane"/>`; }
+  for(const pair of M.worm) for(const id of pair){ const p=P2(id);
+    worm += `<g transform="translate(${f(p.x)} ${f(p.y)})"><circle r="${p.r+9}" fill="none" stroke="#c77dff" stroke-width="2" stroke-dasharray="6 4" class="spin"/>
+      <text y="${-p.r-14}" class="lbl" style="fill:#d9a6ff">WORMHOLE</text></g>`; }
+  for(const p of T){
+    planets += `<g class="t" data-t="${p.i}"><circle cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r+10}" fill="transparent" stroke="none"/>
+      <circle class="pl" cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r}"/>
+      <circle cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r}" fill="url(#shade)" stroke="none" pointer-events="none"/>
+      ${p.ring?`<ellipse cx="${f(p.x)}" cy="${f(p.y)}" rx="${p.r*1.65}" ry="${p.r*.42}" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2" transform="rotate(-20 ${f(p.x)} ${f(p.y)})" pointer-events="none"/>`:""}</g>`;
+    const R2 = p.r + 4.5;
+    outlines += `<path class="ol" d="M${f(p.x-R2)} ${f(p.y)}a${R2} ${R2} 0 1 0 ${2*R2} 0a${R2} ${R2} 0 1 0 ${-2*R2} 0"/>`;
+    badges += `<g class="badge" transform="translate(${f(p.x)} ${f(p.y)})"><g><circle r="10.5"/><text>1</text></g></g>`;
+    names += `<text class="nm" x="${f(p.x)}" y="${f(p.y+p.r+10)}">${esc(p.name)}</text>`;
+  }
+  svg.setAttribute("viewBox", `0 0 ${M.w} ${M.h}`);
+  svg.innerHTML = `<defs>
+    <radialGradient id="space" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#151a3a"/><stop offset="1" stop-color="#05060f"/></radialGradient>
+    <radialGradient id="shade" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient>
+    <radialGradient id="holeGlow"><stop offset=".35" stop-color="#000" stop-opacity=".9"/><stop offset=".55" stop-color="#ff9a3c" stop-opacity=".25"/><stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/></radialGradient>
+    <linearGradient id="disk"><stop offset="0" stop-color="#ff6b2c"/><stop offset=".5" stop-color="#ffe0a3"/><stop offset="1" stop-color="#ff6b2c"/></linearGradient>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
+  </defs>
+  <rect width="${M.w}" height="${M.h}" fill="url(#space)"/>
+  <g fill="#fff">${stars}</g>${bg}<g>${rocks}</g>
+  <text x="514" y="112" class="lbl">ASTEROID BELT</text><text x="70" y="284" class="lbl" style="fill:#e3c2ff">NEBULA</text><text x="600" y="286" class="lbl" style="fill:#ffc2e3">ION STORM</text>
+  ${orbits}<g>${lanes}</g>${suns}${worm}
+  <g id="cells">${planets}</g><g>${outlines}</g><g>${names}</g><g>${badges}</g>`;
+  finishMap();
+}
 function buildMap(){
+  if(MAPS[mapId].space) return buildSpace(MAPS[mapId]);
   let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
   const segsTerr=[], segsReg=[], segsCoast=[];
   let groups="", outlines="", badges="", names="", lanes="";
@@ -465,11 +578,7 @@ function buildMap(){
   <g>${outlines}</g>
   <g>${names}</g>
   <g>${badges}</g>`;
-  els.g = [...svg.querySelectorAll("g.t")];
-  els.ol = [...svg.querySelectorAll("path.ol")];
-  els.badge = [...svg.querySelectorAll("g.badge > g")];
-  els.num = els.badge.map(b=>b.querySelector("text"));
-  if(window.innerWidth < 640) svg.classList.add("nonames");
+  finishMap();
 }
 
 function paintMap(){
@@ -661,6 +770,7 @@ function showRules(){
     <li><b>Reinforce:</b> each turn you get troops = your territories ÷ 3 (min 3), plus region bonuses, plus card sets.</li>
     <li><b>Attack:</b> pick one of your territories with 2+ troops, then a neighboring enemy. Dashed lines are sea lanes. You roll up to 3 dice, the defender up to 2. Highest dice are compared in pairs — the higher die wins, ties go to the defender.</li>
     <li><b>Capture:</b> when a territory hits 0 troops it's yours. Move in at least as many troops as dice you rolled.</li>
+    <li><b>Space map:</b> you can only fly along the dotted routes. The black hole, asteroid belts and nebulas block the way, so sometimes you have to go around. A purple wormhole links two far-apart planets.</li>
     <li><b>Fortify:</b> once per turn, move troops between two of your territories connected through your own land.</li>
     <li><b>Cards:</b> conquer at least one territory in a turn to earn a card. Trade sets for growing bonuses (4, 6, 8, 10, 12, 15, then +5). Eliminate a player to take their cards.</li>
     <li><b>Texting:</b> when you end your turn, tap “Send” and pick your group chat or friend. The whole game lives in the link — whoever's turn it is just taps it.</li>
@@ -676,7 +786,7 @@ function showSetup(){
   openSheet(`<h2>New game</h2><p>2–6 players. Territories are dealt at random, then you take turns by texting the link.</p>
     ${names.map((n,i)=>`<div class="prow"><span class="dot" style="background:${COLORS[i]}"></span><input type="text" maxlength="14" placeholder="${CNAMES[i]} player name" value="${esc(n)}" data-i="${i}">${names.length>2?`<button class="x" data-act="rmp" data-i="${i}" aria-label="Remove">×</button>`:""}</div>`).join("")}
     ${names.length<6?`<div class="row" style="margin-top:6px"><button class="btn ghost" data-act="addp">+ Add player</button></div>`:""}
-    <h3>Map</h3>${seg("map",[[0,"Classic · 28"],[1,"Grand · 42"]])}
+    <h3>Map</h3>${seg("map",[[0,"Islands · 28"],[1,"Grand · 42"],[2,"Space · 30"]])}
     <h3>Starting troops</h3>${seg("draft",[[false,"Random"],[true,"Place them yourselves"]])}
     ${names.length===2?`<h3>Neutral army</h3>${seg("neutral",[[true,"On"],[false,"Off"]])}<div class="hint">A gray army that holds some territory and never attacks. Makes 2-player games less of a race.</div>`:""}
     <div class="row" style="margin-top:16px"><button class="btn primary" data-act="start">Start game</button></div>

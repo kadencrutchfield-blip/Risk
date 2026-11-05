@@ -15,7 +15,7 @@ The whole game state is stored in the link itself, so you don't need a server, a
 
 ## Game options
 
-- **Map:** Classic Isles (28 territories, 6 regions) or Grand Archipelago (42 territories, 8 regions).
+- **Map:** Classic Isles (28 territories, 6 regions), Grand Archipelago (42 territories, 8 regions), or Star Systems (30 planets in 6 star systems). On the space map you can only fly along the dotted routes. A black hole, asteroid belts, a nebula and an ion storm block some paths, so you have to go around them, and a wormhole links two far-apart planets.
 - **Starting troops:** scattered at random, or *place them yourselves*, where each player's first turn is a setup turn for placing their starting troops.
 - **Neutral army (2 players):** a gray army holds a third of the map and never attacks. You win by knocking out your opponent; the neutral army doesn't have to be wiped out.
 
