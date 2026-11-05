@@ -33,6 +33,35 @@ Tap 🔍 in the top bar to zoom the map in and scroll around it. Tap ↩ to fit 
 
 The page is `index.html` and the game code is `game.js`. Open `index.html` in a browser to play locally.
 
+## Testing
+
+`tests/qa.js` is the QA suite. It serves the game locally and drives it in headless Chromium:
+
+```
+npm install
+npx playwright install chromium
+npm test                     # everything (about a minute)
+node tests/qa.js rules ui    # just some suites
+```
+
+| Suite | What it checks |
+| --- | --- |
+| `rules` | Card values, card sets, income, fair and repeatable dice, fortify paths, all 4 maps' connections, setup for every player count and option |
+| `sim` | Computer players finish 32 full games across every map, player count and option, checking the game state after every move and sending the link back and forth |
+| `ui` | A real tap-through: setup, placement round, undo, attack, capture, fortify, sending the link, menus, zoom |
+| `security` | Tampered links, oversized links, a decompression bomb, 400 random corrupted links, the script security policy |
+| `layout` | 320 px phones up to laptops: no sideways scrolling, nothing cut off, buttons big enough to tap |
+| `a11y` | axe-core accessibility scan of every screen |
+| `perf` | Load time, file sizes, map speed on a slowed-down CPU |
+
+GitHub Actions runs the full suite on every push (`.github/workflows/qa.yml`).
+
+## Releasing a change
+
+1. Run `npm test`.
+2. If `game.js` changed, bump the `?v=` number on its `<script>` tag in `index.html`, so browsers don't mix a cached old `game.js` with a new page.
+3. Push to `main`. GitHub Pages redeploys within a minute or two.
+
 ## Security notes
 
 - A game link can be edited by anyone who has it. Before the game uses a link, `validState()` in `game.js` checks every field for the right type and range, and rejects anything else as a broken link.

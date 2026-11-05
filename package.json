@@ -1,0 +1,14 @@
+{
+  "name": "overrun",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A turn-based conquest game you play with friends by texting a link.",
+  "scripts": {
+    "test": "node tests/qa.js",
+    "test:quick": "node tests/qa.js rules ui security"
+  },
+  "devDependencies": {
+    "axe-core": "4.10.2",
+    "playwright": "1.63.0"
+  }
+}

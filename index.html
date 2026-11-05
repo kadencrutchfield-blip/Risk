@@ -11,7 +11,13 @@
 <meta property="og:title" content="Overrun — it's your move!">
 <meta property="og:description" content="Tap to take your turn in our game of Overrun.">
 <meta property="og:image" content="https://kadencrutchfield-blip.github.io/Risk/preview.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
 <meta property="og:type" content="website">
+<meta property="og:url" content="https://kadencrutchfield-blip.github.io/Risk/">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="apple-mobile-web-app-title" content="Overrun">
 <style>
 :root{
   --bg:#0e1726; --bg2:#16233a; --bg3:#1f3150; --line:#2c4268;
@@ -121,6 +127,7 @@ table.reg td:last-child{text-align:right;color:var(--accent);font-weight:700}
 </style>
 </head>
 <body>
+<noscript><p style="padding:24px;text-align:center">Overrun needs JavaScript turned on to play.</p></noscript>
 <header id="top">
   <h1>OVER<span>RUN</span></h1>
   <div id="turninfo"></div>
@@ -135,6 +142,6 @@ table.reg td:last-child{text-align:right;color:var(--accent);font-weight:700}
 <div id="overlay" hidden><div class="sheet" id="sheet"></div></div>
 <div id="toast"></div>
 
-<script src="game.js"></script>
+<script src="game.js?v=1.0.0"></script>
 </body>
 </html>

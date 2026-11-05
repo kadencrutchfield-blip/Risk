@@ -99,6 +99,8 @@ const MAPS = [
            {x:855,y:268,rx:38,ry:30,c:"#ff6bb5",label:"ION STORM",lc:"#ffc2e3"}] }
 ];
 const COLORS = ["#e5484d","#3e8ef7","#30a46c","#e6a700","#8e4ec6","#f76b15","#8b95a7"];
+// Brighter versions of the player colours for text, readable on the dark panels (WCAG AA, 4.5:1+)
+const TEXT_COLORS = ["#ff7c80","#6ba8ff","#45c487","#f2bd2c","#b98cf0","#ff8f4d","#b0bacb"];
 const CNAMES = ["Red","Blue","Green","Gold","Purple","Orange","Neutral"];
 const START_ARMIES = {2:24,3:20,4:16,5:14,6:12,7:12};
 const CARD_ICONS = ["⚔️","🛡️","🏹","⭐"];
@@ -565,7 +567,7 @@ function paintMap(){
 }
 
 /* ===================== PANEL / UI ===================== */
-const pname = i=> `<span class="pn" style="color:${COLORS[P(i).c]}">${esc(P(i).n)}</span>`;
+const pname = i=> `<span class="pn" style="color:${TEXT_COLORS[P(i).c]}">${esc(P(i).n)}</span>`;
 const fmt = s=> esc(s).replace(/@(\d)/g, (_,i)=> S.p[+i] ? pname(+i) : "?");
 function steps(){
   const k = {reinforce:0, attack:1, move:1, fortify:2}[S.ph] ?? 0;
@@ -870,5 +872,15 @@ async function load(){
   }
 }
 window.addEventListener("hashchange", load);
+// Last-resort safety net: if anything unexpected goes wrong, say so instead of
+// silently freezing. The game itself is safe in the link.
+let lastErrorToast = 0;
+function onUnexpected(){
+  if(Date.now() - lastErrorToast < 4000) return;
+  lastErrorToast = Date.now();
+  toast("Something went wrong. Your game is saved in the link. Try reopening it.");
+}
+window.addEventListener("error", onUnexpected);
+window.addEventListener("unhandledrejection", onUnexpected);
 useMap(0);
 load();
