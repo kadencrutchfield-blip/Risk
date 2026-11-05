@@ -31,4 +31,12 @@ Tap 🔍 in the top bar to zoom the map in and scroll around it. Tap ↩ to fit 
 
 ## Development
 
-Everything lives in `index.html`. Open it in a browser to play locally.
+The page is `index.html` and the game code is `game.js`. Open `index.html` in a browser to play locally.
+
+## Security notes
+
+- A game link can be edited by anyone who has it. Before the game uses a link, `validState()` in `game.js` checks every field for the right type and range, and rejects anything else as a broken link.
+- Links are size-capped before and after decompression, so an oversized link can't hog memory.
+- The page's Content-Security-Policy only allows scripts from `game.js`. Injected or inline scripts won't run even if something gets past the link check.
+- The game state lives in the part of the URL after `#`, which browsers never send to the server. GitHub Pages never sees anyone's game.
+- Without a server, cheating can't be fully prevented. Someone could still edit a link to give themselves troops; this is a game among friends, built on trust.
