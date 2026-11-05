@@ -1,0 +1,730 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0e1726">
+<title>Overrun</title>
+<meta name="description" content="A turn-based conquest game you play with friends over text.">
+<meta property="og:title" content="Overrun — it's your move!">
+<meta property="og:description" content="Tap to take your turn in our game of Overrun.">
+<meta property="og:image" content="https://kadencrutchfield-blip.github.io/Risk/preview.png">
+<meta property="og:type" content="website">
+<style>
+:root{
+  --bg:#0e1726; --bg2:#16233a; --bg3:#1f3150; --line:#2c4268;
+  --text:#eef3fb; --muted:#9fb1cc; --accent:#ffd166; --danger:#ff6b6b;
+  --water1:#1d4e7a; --water2:#123657;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--text);font:15px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;-webkit-tap-highlight-color:transparent}
+body{min-height:100dvh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom)}
+button{font:inherit;color:inherit;border:0;cursor:pointer}
+#top{display:flex;align-items:center;gap:10px;padding:10px 16px;padding-top:max(10px,env(safe-area-inset-top));background:var(--bg2);border-bottom:1px solid var(--line)}
+#top h1{font-size:18px;margin:0;letter-spacing:.5px;font-weight:800}
+#top h1 span{color:var(--accent)}
+#turninfo{margin-left:auto;display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);min-width:0}
+#turninfo b{color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.iconbtn{background:var(--bg3);border-radius:10px;padding:7px 11px;font-size:14px;font-weight:600}
+.dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
+main{flex:1;display:flex;flex-direction:column;max-width:900px;width:100%;margin:0 auto}
+#mapwrap{padding:8px 8px 0}
+#map{width:100%;height:auto;display:block;border-radius:14px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#map .t{cursor:pointer}
+#map .t polygon{stroke-width:.8;transition:opacity .15s}
+#map .t.dim{opacity:.38}
+#map .ol{fill:none;stroke:transparent;stroke-width:3;stroke-linecap:round;pointer-events:none}
+#map .ol.sel{stroke:#fff;stroke-width:3.5}
+#map .ol.tgt{stroke:var(--accent);stroke-width:3;stroke-dasharray:4 3;animation:dash 0.8s linear infinite}
+#map .ol.ok{stroke:#9ff5c0;stroke-width:2.5;stroke-dasharray:4 3;animation:dash 0.8s linear infinite}
+#map .ol.hit{stroke:var(--danger);stroke-width:4}
+@keyframes dash{to{stroke-dashoffset:-14}}
+#map .badge{pointer-events:none}
+#map .badge circle{fill:rgba(10,16,28,.82);stroke-width:1.6}
+#map .badge text{fill:#fff;font-weight:800;font-size:11px;text-anchor:middle;dominant-baseline:central}
+#map .nm{pointer-events:none;fill:#fff;font-size:7px;font-weight:700;text-anchor:middle;paint-order:stroke;stroke:rgba(0,0,0,.75);stroke-width:2px}
+#map.nonames .nm{display:none}
+#map .pop{animation:pop .45s ease-out}
+@keyframes pop{0%{transform:scale(1)}40%{transform:scale(1.35)}100%{transform:scale(1)}}
+#panel{margin:10px 8px 0;background:var(--bg2);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+#panel .ph{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:700}
+#panel .msg{margin:4px 0 10px;font-size:15px}
+#panel .msg b{color:var(--accent)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.btn{background:var(--bg3);border-radius:12px;padding:11px 14px;font-weight:700;flex:1 1 auto;min-width:0;text-align:center}
+.btn.primary{background:var(--accent);color:#1b1300}
+.btn.red{background:#e5484d;color:#fff}
+.btn.ghost{background:transparent;border:1px solid var(--line)}
+.btn:disabled{opacity:.4;cursor:default}
+.steps{display:flex;gap:4px;margin:6px 0 2px}
+.steps i{flex:1;height:4px;border-radius:2px;background:var(--bg3)}
+.steps i.on{background:var(--accent)}
+.dice{display:flex;align-items:center;gap:6px;margin:0 0 10px;flex-wrap:wrap}
+.die{width:30px;height:30px;border-radius:7px;display:grid;place-items:center;font-weight:800;font-size:16px}
+.die.a{background:#e5484d;color:#fff}.die.d{background:#f1f4f9;color:#16233a}
+.die.lose{opacity:.35}
+.dice .vs{color:var(--muted);font-size:12px;margin:0 4px}
+#players{display:flex;gap:6px;flex-wrap:wrap;margin:10px 8px 16px}
+.pchip{display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--line);border-radius:999px;padding:5px 10px 5px 7px;font-size:13px}
+.pchip.cur{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+.pchip.out{opacity:.4;text-decoration:line-through}
+.pchip small{color:var(--muted)}
+#overlay{position:fixed;inset:0;background:rgba(5,9,16,.72);display:flex;align-items:flex-end;justify-content:center;z-index:10;padding:16px;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+#overlay[hidden]{display:none}
+.sheet{background:var(--bg2);border:1px solid var(--line);border-radius:20px;padding:20px 18px;width:100%;max-width:480px;max-height:88dvh;overflow:auto;margin-bottom:env(safe-area-inset-bottom)}
+@media(min-width:700px){#overlay{align-items:center}}
+.sheet h2{margin:0 0 6px;font-size:22px}
+.sheet h3{margin:16px 0 6px;font-size:15px;color:var(--accent)}
+.sheet p{margin:6px 0;color:var(--muted)}
+.sheet .big{font-size:44px;font-weight:800;text-align:center;margin:6px 0}
+.sheet input[type=text]{width:100%;background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:11px 12px;color:var(--text);font:inherit;font-size:16px}
+.sheet input[type=range]{width:100%;accent-color:var(--accent)}
+.prow{display:flex;gap:8px;align-items:center;margin:8px 0}
+.prow .x{background:transparent;color:var(--muted);font-size:20px;padding:4px 8px}
+.log{list-style:none;padding:0;margin:8px 0;font-size:14px}
+.log li{padding:6px 0;border-bottom:1px solid var(--line)}
+.log li:last-child{border:0}
+.log .tn{color:var(--muted);font-size:12px;margin-right:6px}
+.pn{font-weight:800}
+.cards{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}
+.cardx{width:56px;height:76px;border-radius:10px;background:linear-gradient(160deg,#2a426b,#1a2b48);border:1px solid #3d5a8a;display:grid;place-items:center;font-size:26px}
+.cardx small{display:block;font-size:10px;color:var(--muted);text-align:center}
+.cardx.on{border-color:var(--accent);box-shadow:0 0 0 2px var(--accent)}
+.rules li{margin:4px 0;color:var(--muted)}
+.rules b{color:var(--text)}
+table.reg{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+table.reg td{padding:5px 2px;border-bottom:1px solid var(--line)}
+table.reg td:last-child{text-align:right;color:var(--accent);font-weight:700}
+#toast{position:fixed;left:50%;top:70px;transform:translateX(-50%) translateY(-20px);background:#000c;color:#fff;padding:9px 14px;border-radius:10px;font-size:14px;opacity:0;transition:.25s;pointer-events:none;z-index:20;max-width:90vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+.menu .btn{display:block;width:100%;margin:6px 0;text-align:left}
+.hint{font-size:12px;color:var(--muted);margin-top:8px}
+</style>
+</head>
+<body>
+<header id="top">
+  <h1>OVER<span>RUN</span></h1>
+  <div id="turninfo"></div>
+  <button class="iconbtn" id="menuBtn" aria-label="Menu">☰</button>
+</header>
+<main>
+  <div id="mapwrap"><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <section id="panel"></section>
+  <div id="players"></div>
+</main>
+<div id="overlay" hidden><div class="sheet" id="sheet"></div></div>
+<div id="toast"></div>
+
+<script>
+'use strict';
+/* =====================  MAP DATA  ===================== */
+// Hex grid (odd rows shifted right). Each letter = one territory, '.' = sea.
+const GRID = [
+"....................",
+"..AAA.BBB....EEFFF..",
+".AAACCBB....EEEFFGG.",
+"..ACCCDD.....HEFFGG.",
+"..CCDDD.....HHHIIJJ.",
+"......D....HHIIIJJJ.",
+"......KKLL...II.....",
+".....KKKLLMM.....XX.",
+"....NNKOOLMM....XXXY",
+"...NNNOOOMM.....ZZYY",
+"..PPNQQOO.......ZaYb",
+".PPPQQQ...TTUU..Zaab",
+"..PRRQS...TTTUUV.abb",
+"..RRRSS....WWUVV....",
+"...RSS.....WWW.V....",
+"...................."];
+const TERR = {
+  A:["Glacier Bay",0], B:["Rime Peaks",0], C:["Whitewood",0], D:["Coldharbor",0],
+  E:["Stormcrest",1], F:["Eagle's Rest",1], G:["Thornvale",1], H:["Ironhold",1], I:["Granite Pass",1], J:["Windmere",1],
+  K:["Oakshire",2], L:["Millbrook",2], M:["Stonebridge",2], N:["Westmarch",2], O:["Crossroads",2],
+  P:["Dune Sea",3], Q:["Mirage Flats",3], R:["Scorpion Gulch",3], S:["Oasis",3],
+  T:["Jade Cove",4], U:["Palm Reach",4], V:["Coral Point",4], W:["Lagoon",4],
+  X:["Cinder Ridge",5], Y:["Smolder",5], Z:["Obsidian Fields",5], a:["Ember Coast",5], b:["Ashfall",5]
+};
+const REG = [
+  {n:"Frostmark", b:2}, {n:"Highreach", b:3}, {n:"Heartland", b:3},
+  {n:"Sunscar", b:2}, {n:"Emerald Isles", b:2}, {n:"Ashlands", b:3}
+];
+// Sea lanes between territories that don't touch by land
+const SEA = [["B","E"],["H","L"],["J","X"],["M","T"],["S","W"],["V","a"],["A","P"]];
+const COLORS = ["#e5484d","#3e8ef7","#30a46c","#e6a700","#8e4ec6","#f76b15"];
+const CNAMES = ["Red","Blue","Green","Gold","Purple","Orange"];
+const START_ARMIES = {2:24,3:20,4:16,5:14,6:12};
+const CARD_ICONS = ["⚔️","🛡️","🏹","⭐"];
+const CARD_NAMES = ["Sword","Shield","Bow","Wild"];
+
+/* ===================== GEOMETRY ===================== */
+const H = GRID.length, W = GRID[0].length, R = 20, SQ = Math.sqrt(3);
+const LET = Object.keys(TERR);
+const IDX = Object.fromEntries(LET.map((l,i)=>[l,i]));
+const T = LET.map((l,i)=>({i, l, name:TERR[l][0], reg:TERR[l][1], cells:[], adj:new Set()}));
+const DIR_E = [[0,1],[1,0],[1,-1],[0,-1],[-1,-1],[-1,0]];   // edge k -> neighbour (even rows)
+const DIR_O = [[0,1],[1,1],[1,0],[0,-1],[-1,0],[-1,1]];     // (odd rows)
+const at = (r,c)=> (r<0||c<0||r>=H||c>=W) ? "." : GRID[r][c];
+const ctr = (r,c)=> [SQ*R*(c+0.5*(r&1)) + SQ*R/2, 1.5*R*r + R];
+const corner = (x,y,k)=>{const a=Math.PI/180*(60*k-30); return [x+R*Math.cos(a), y+R*Math.sin(a)];};
+for(let r=0;r<H;r++) for(let c=0;c<W;c++){
+  const l = GRID[r][c]; if(l===".") continue;
+  const t = T[IDX[l]]; t.cells.push([r,c]);
+  const D = (r&1)?DIR_O:DIR_E;
+  for(const [dr,dc] of D){ const n = at(r+dr,c+dc); if(n!=="." && n!==l) t.adj.add(IDX[n]); }
+}
+for(const [x,y] of SEA){ T[IDX[x]].adj.add(IDX[y]); T[IDX[y]].adj.add(IDX[x]); }
+const NT = T.length;
+const regionTerr = REG.map((_,ri)=>T.filter(t=>t.reg===ri).map(t=>t.i));
+
+/* ===================== HELPERS ===================== */
+const $ = s=>document.querySelector(s);
+const esc = s=>String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const b64 = {
+  enc(bytes){let s="";for(let i=0;i<bytes.length;i++)s+=String.fromCharCode(bytes[i]);return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");},
+  dec(str){str=str.replace(/-/g,"+").replace(/_/g,"/");while(str.length%4)str+="=";const s=atob(str),b=new Uint8Array(s.length);for(let i=0;i<s.length;i++)b[i]=s.charCodeAt(i);return b;}
+};
+async function pack(obj){
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){
+    try{
+      const buf = await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream("deflate-raw"))).arrayBuffer();
+      return "z"+b64.enc(new Uint8Array(buf));
+    }catch(e){}
+  }
+  return "j"+b64.enc(raw);
+}
+async function unpack(code){
+  let bytes = b64.dec(code.slice(1));
+  if(code[0]==="z") bytes = new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(new DecompressionStream("deflate-raw"))).arrayBuffer());
+  return JSON.parse(new TextDecoder().decode(bytes));
+}
+function toast(msg){const el=$("#toast");el.textContent=msg;el.classList.add("show");clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove("show"),2200);}
+
+/* ===================== STATE ===================== */
+let S = null;          // the shared game state (lives in the URL)
+let link = "";         // current shareable URL
+const UI = {view:"setup", sel:-1, tgt:-1, dice:null, undo:[], battle:null, playing:false, flash:-1, mustTrade:false};
+
+// Seeded RNG stored in the state so reloading a link can't re-roll dice.
+function rng(){
+  let t = (S.seed = (S.seed + 0x6D2B79F5) | 0);
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+}
+const roll = ()=> 1 + Math.floor(rng()*6);
+const P = i=> S.p[i];
+const me = ()=> S.cur;
+const owned = p=> { let n=0; for(let i=0;i<NT;i++) if(S.o[i]===p) n++; return n; };
+const troops = p=> { let n=0; for(let i=0;i<NT;i++) if(S.o[i]===p) n+=S.a[i]; return n; };
+const heldRegions = p=> REG.map((r,ri)=>ri).filter(ri=>regionTerr[ri].every(t=>S.o[t]===p));
+function income(p){
+  const base = Math.max(3, Math.floor(owned(p)/3));
+  const bonus = heldRegions(p).reduce((s,ri)=>s+REG[ri].b,0);
+  return {base, bonus, total:base+bonus};
+}
+const tradeValue = k=> k<6 ? [4,6,8,10,12,15][k] : 15 + 5*(k-5);
+function log(text){ S.log.push([S.turn, text]); if(S.log.length>40) S.log.splice(0, S.log.length-40); }
+function nextAlive(i){ let j=i; do{ j=(j+1)%S.p.length; }while(S.p[j].out && j!==i); return j; }
+
+function newGame(names){
+  const n = names.length;
+  S = {v:1, p:names.map((nm,i)=>({n:nm, c:i, cards:[], out:false})), o:Array(NT).fill(0), a:Array(NT).fill(1),
+       cur:0, ph:"start", rf:0, conq:false, trades:0, seed:(Math.random()*2**31)|0, turn:1, win:-1, mv:null, log:[]};
+  const order = [...Array(NT).keys()];
+  for(let i=order.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [order[i],order[j]]=[order[j],order[i]]; }
+  // deal starting from the last player so later players get any extra territory
+  order.forEach((t,k)=>{ S.o[t] = (n-1 - (k % n) + n) % n; });
+  for(let p=0;p<n;p++){
+    const mine = order.filter(t=>S.o[t]===p);
+    let extra = START_ARMIES[n] - mine.length;
+    while(extra-->0) S.a[mine[Math.floor(rng()*mine.length)]]++;
+  }
+  log("The battle for the isles begins! Turn order: " + S.p.map((_,i)=>"@"+i).join(" → "));
+}
+
+async function save(){
+  const code = await pack(S);
+  link = location.href.split("#")[0] + "#g=" + code;
+  history.replaceState(null, "", "#g=" + code);
+}
+
+/* ===================== GAME ACTIONS ===================== */
+function startTurn(){
+  const inc = income(me());
+  S.ph = "reinforce"; S.rf = inc.total; S.conq = false; S.mv = null;
+  UI.undo = []; UI.sel = UI.tgt = -1; UI.dice = null; UI.battle = null;
+  save();
+  if(P(me()).cards.length >= 5){ UI.mustTrade = true; openCards(); }
+}
+function place(t, n){
+  n = Math.min(n, S.rf); if(n<=0) return;
+  S.a[t] += n; S.rf -= n; for(let k=0;k<n;k++) UI.undo.push(t);
+  UI.flash = t; save(); render();
+}
+function undoPlace(){
+  const t = UI.undo.pop(); if(t===undefined) return;
+  S.a[t]--; S.rf++; save(); render();
+}
+function findSet(cards){
+  let best=null;
+  for(let i=0;i<cards.length;i++) for(let j=i+1;j<cards.length;j++) for(let k=j+1;k<cards.length;k++){
+    const set=[cards[i],cards[j],cards[k]], nw=set.filter(c=>c!==3), wild=3-nw.length, u=new Set(nw).size;
+    if(u<=1 || u===nw.length){ if(!best || wild<best.w) best={idx:[i,j,k], w:wild}; }
+  }
+  return best && best.idx;
+}
+function tradeSet(){
+  const pl = P(me()), idx = findSet(pl.cards); if(!idx) return;
+  const val = tradeValue(S.trades++);
+  pl.cards = pl.cards.filter((_,i)=>!idx.includes(i));
+  S.rf += val; log(`@${me()} traded in a card set for +${val} troops`);
+  if(pl.cards.length < 5) UI.mustTrade = false;
+  save(); render();
+}
+function toAttack(){ S.ph = "attack"; UI.sel = UI.tgt = -1; UI.undo = []; save(); render(); }
+function flushBattle(){
+  const b = UI.battle; if(!b) return; UI.battle = null;
+  if(b.al+b.dl===0) return;
+  log(`@${me()} attacked ${T[b.t].name} from ${T[b.f].name} (lost ${b.al}, killed ${b.dl})`);
+}
+function attackOnce(){
+  const f=UI.sel, t=UI.tgt;
+  if(f<0||t<0||S.a[f]<2||S.o[t]===me()) return false;
+  if(!UI.battle || UI.battle.f!==f || UI.battle.t!==t){ flushBattle(); UI.battle={f,t,al:0,dl:0}; }
+  const an = Math.min(3, S.a[f]-1), dn = Math.min(2, S.a[t]);
+  const ad = Array.from({length:an}, roll).sort((x,y)=>y-x);
+  const dd = Array.from({length:dn}, roll).sort((x,y)=>y-x);
+  const res = [];
+  for(let k=0;k<Math.min(an,dn);k++){
+    if(ad[k]>dd[k]){ S.a[t]--; UI.battle.dl++; res.push(1); } else { S.a[f]--; UI.battle.al++; res.push(0); }
+  }
+  UI.dice = {ad, dd, res};
+  if(S.a[t]===0){ capture(f, t, an); return false; }
+  return S.a[f] >= 2;
+}
+function capture(f, t, dice){
+  const loser = S.o[t], b = UI.battle; UI.battle = null;
+  S.o[t] = me(); S.conq = true;
+  log(`@${me()} conquered ${T[t].name} from @${loser}` + (b ? ` (lost ${b.al}, killed ${b.dl})` : ""));
+  if(owned(loser)===0){
+    P(loser).out = true;
+    const got = P(loser).cards.length;
+    P(me()).cards.push(...P(loser).cards); P(loser).cards = [];
+    log(`@${me()} eliminated @${loser}!` + (got?` and took ${got} card${got>1?"s":""}`:""));
+  }
+  if(owned(me())===NT){
+    S.a[t] = S.a[f]-1; S.a[f] = 1; S.win = me(); S.ph = "over";
+    log(`🏆 @${me()} conquered every territory and wins the game!`);
+    save(); UI.view = "win"; render(); showWin(); return;
+  }
+  S.mv = {f, t, min:Math.min(dice, S.a[f]-1)}; S.ph = "move";
+  UI.flash = t; save(); render(); openMove();
+}
+function blitz(){
+  let guard = 0;
+  while(attackOnce() && guard++<200){}
+  if(S.ph==="attack" && UI.sel>=0 && S.a[UI.sel]<2){ flushBattle(); UI.tgt=-1; }
+  save(); render();
+}
+function confirmMove(n){
+  const {f,t} = S.mv;
+  S.a[f] -= n; S.a[t] += n; S.mv = null; S.ph = "attack";
+  UI.sel = S.a[t]>=2 ? t : -1; UI.tgt = -1; UI.dice = null;
+  closeSheet(); save(); render();
+}
+function toFortify(){ flushBattle(); S.ph = "fortify"; UI.sel = UI.tgt = -1; UI.dice = null; save(); render(); }
+function reachable(f){
+  const seen = new Set([f]), st=[f];
+  while(st.length){ const x=st.pop(); for(const y of T[x].adj) if(!seen.has(y) && S.o[y]===me()){ seen.add(y); st.push(y); } }
+  seen.delete(f); return seen;
+}
+function doFortify(f, t, n){
+  S.a[f] -= n; S.a[t] += n;
+  log(`@${me()} moved ${n} troop${n>1?"s":""} from ${T[f].name} to ${T[t].name}`);
+  closeSheet(); endTurn();
+}
+function endTurn(){
+  flushBattle();
+  const pl = P(me());
+  if(S.conq){ const r=rng(); pl.cards.push(r<0.07?3:Math.floor(rng()*3)); }
+  const prev = me();
+  S.cur = nextAlive(prev); S.turn++; S.ph = "start"; S.rf = 0; S.conq = false; S.mv = null;
+  UI.sel = UI.tgt = -1; UI.dice = null; UI.undo = []; UI.playing = false; UI.view = "sent";
+  save().then(()=>{ render(); showSent(prev); });
+}
+
+/* ===================== MAP RENDER ===================== */
+const svg = $("#map");
+const els = {g:[], ol:[], badge:[], num:[]};
+function buildMap(){
+  let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
+  const segsTerr=[], segsReg=[], segsCoast=[];
+  let groups="", outlines="", badges="", names="", lanes="";
+  const labelCell = [];
+  for(const t of T){
+    let polys="", ol="";
+    const cx = t.cells.reduce((s,[r,c])=>s+ctr(r,c)[0],0)/t.cells.length;
+    const cy = t.cells.reduce((s,[r,c])=>s+ctr(r,c)[1],0)/t.cells.length;
+    let best=null,bd=1e9;
+    for(const [r,c] of t.cells){
+      const [x,y]=ctr(r,c); const pts=[];
+      for(let k=0;k<6;k++){ const p=corner(x,y,k); pts.push(p.map(v=>v.toFixed(1)).join(",")); minX=Math.min(minX,p[0]);maxX=Math.max(maxX,p[0]);minY=Math.min(minY,p[1]);maxY=Math.max(maxY,p[1]); }
+      polys += `<polygon points="${pts.join(" ")}"/>`;
+      const D=(r&1)?DIR_O:DIR_E;
+      for(let k=0;k<6;k++){
+        const n = at(r+D[k][0], c+D[k][1]);
+        if(n===t.l) continue;
+        const a=corner(x,y,k), b=corner(x,y,(k+1)%6);
+        const seg=`M${a[0].toFixed(1)} ${a[1].toFixed(1)}L${b[0].toFixed(1)} ${b[1].toFixed(1)}`;
+        ol += seg;
+        if(n===".") segsCoast.push(seg);
+        else if(t.l < n){ (T[IDX[n]].reg===t.reg ? segsTerr : segsReg).push(seg); }
+      }
+      const d=(x-cx)**2+(y-cy)**2; if(d<bd){bd=d;best=[x,y];}
+    }
+    labelCell[t.i]=best;
+    groups += `<g class="t" data-t="${t.i}">${polys}</g>`;
+    outlines += `<path class="ol" d="${ol}"/>`;
+    badges += `<g class="badge" transform="translate(${best[0].toFixed(1)} ${best[1].toFixed(1)})"><g><circle r="10.5"/><text>1</text></g></g>`;
+    names += `<text class="nm" x="${best[0].toFixed(1)}" y="${(best[1]+17).toFixed(1)}">${esc(t.name)}</text>`;
+  }
+  for(const [x,y] of SEA){
+    // connect the closest pair of cells
+    let bd=1e9,bp=null;
+    for(const [r1,c1] of T[IDX[x]].cells) for(const [r2,c2] of T[IDX[y]].cells){
+      const p=ctr(r1,c1), q=ctr(r2,c2), d=(p[0]-q[0])**2+(p[1]-q[1])**2; if(d<bd){bd=d;bp=[p,q];}
+    }
+    lanes += `<line x1="${bp[0][0]}" y1="${bp[0][1]}" x2="${bp[1][0]}" y2="${bp[1][1]}"/>`;
+  }
+  const pad=14; minX-=pad;minY-=pad;maxX+=pad;maxY+=pad;
+  svg.setAttribute("viewBox", `${minX.toFixed(0)} ${minY.toFixed(0)} ${(maxX-minX).toFixed(0)} ${(maxY-minY).toFixed(0)}`);
+  svg.innerHTML = `
+  <defs>
+    <radialGradient id="sea" cx="50%" cy="40%" r="75%"><stop offset="0" stop-color="var(--water1)"/><stop offset="1" stop-color="var(--water2)"/></radialGradient>
+    <pattern id="waves" width="28" height="14" patternUnits="userSpaceOnUse"><path d="M0 7 q7 -5 14 0 t14 0" fill="none" stroke="#ffffff" stroke-opacity=".05" stroke-width="1.2"/></pattern>
+  </defs>
+  <rect x="${minX}" y="${minY}" width="${maxX-minX}" height="${maxY-minY}" fill="url(#sea)"/>
+  <rect x="${minX}" y="${minY}" width="${maxX-minX}" height="${maxY-minY}" fill="url(#waves)"/>
+  <g stroke="#cfe3ff" stroke-opacity=".55" stroke-width="1.6" stroke-dasharray="3 4" stroke-linecap="round">${lanes}</g>
+  <g id="cells">${groups}</g>
+  <path d="${segsTerr.join("")}" fill="none" stroke="rgba(0,0,0,.45)" stroke-width="1.1" pointer-events="none"/>
+  <path d="${segsReg.join("")}" fill="none" stroke="#0b1220" stroke-width="3" stroke-linecap="round" pointer-events="none"/>
+  <path d="${segsCoast.join("")}" fill="none" stroke="#f3e7c4" stroke-opacity=".75" stroke-width="1.8" stroke-linecap="round" pointer-events="none"/>
+  <g>${outlines}</g>
+  <g>${names}</g>
+  <g>${badges}</g>`;
+  els.g = [...svg.querySelectorAll("g.t")];
+  els.ol = [...svg.querySelectorAll("path.ol")];
+  els.badge = [...svg.querySelectorAll("g.badge > g")];
+  els.num = els.badge.map(b=>b.querySelector("text"));
+  if(window.innerWidth < 640) svg.classList.add("nonames");
+}
+
+function paintMap(){
+  if(!S) return;
+  const active = UI.playing && S.win<0;
+  let ok = new Set(), dimOthers = false;
+  if(active && S.ph==="attack" && UI.sel>=0){ for(const n of T[UI.sel].adj) if(S.o[n]!==me()) ok.add(n); dimOthers=true; }
+  if(active && S.ph==="fortify" && UI.sel>=0){ ok = reachable(UI.sel); dimOthers=true; }
+  for(let i=0;i<NT;i++){
+    const col = COLORS[P(S.o[i]).c];
+    els.g[i].style.fill = col; els.g[i].style.stroke = col;
+    els.g[i].classList.toggle("dim", dimOthers && i!==UI.sel && !ok.has(i));
+    els.num[i].textContent = S.a[i];
+    els.badge[i].querySelector("circle").style.stroke = col;
+    let cls = "ol";
+    if(active){
+      if(i===UI.sel) cls+=" sel";
+      else if(i===UI.tgt) cls+=" hit";
+      else if(ok.has(i)) cls+= S.ph==="attack" ? " tgt" : " ok";
+    }
+    els.ol[i].setAttribute("class", cls);
+  }
+  if(UI.flash>=0){ const b=els.badge[UI.flash]; b.classList.remove("pop"); void b.getBBox(); b.classList.add("pop"); UI.flash=-1; }
+}
+
+/* ===================== PANEL / UI ===================== */
+const pname = i=> `<span class="pn" style="color:${COLORS[P(i).c]}">${esc(P(i).n)}</span>`;
+const fmt = s=> esc(s).replace(/@(\d)/g, (_,i)=>pname(+i));
+function steps(){
+  const k = {reinforce:0, attack:1, move:1, fortify:2}[S.ph] ?? 0;
+  return `<div class="steps">${[0,1,2].map(i=>`<i class="${i<=k?"on":""}"></i>`).join("")}</div>`;
+}
+function diceHtml(){
+  const d=UI.dice; if(!d) return "";
+  const a=d.ad.map((v,k)=>`<div class="die a ${d.res[k]===0?"lose":""}">${v}</div>`).join("");
+  const b=d.dd.map((v,k)=>`<div class="die d ${d.res[k]===1?"lose":""}">${v}</div>`).join("");
+  return `<div class="dice">${a}<span class="vs">vs</span>${b}</div>`;
+}
+function renderTop(){
+  const ti=$("#turninfo");
+  if(!S){ ti.innerHTML=""; return; }
+  const c=P(S.cur);
+  ti.innerHTML = S.win>=0 ? `<span class="dot" style="background:${COLORS[P(S.win).c]}"></span><b>${esc(P(S.win).n)} won!</b>`
+    : `Turn ${S.turn} <span class="dot" style="background:${COLORS[c.c]}"></span><b>${esc(c.n)}</b>`;
+}
+function renderPlayers(){
+  if(!S){ $("#players").innerHTML=""; return; }
+  $("#players").innerHTML = S.p.map((p,i)=>`<div class="pchip ${i===S.cur&&S.win<0?"cur":""} ${p.out?"out":""}">
+    <span class="dot" style="background:${COLORS[p.c]}"></span>${esc(p.n)} <small>${owned(i)}🏳 ${troops(i)}⚔ ${p.cards.length}🃏</small></div>`).join("");
+}
+function renderPanel(){
+  const el = $("#panel");
+  if(!S){ el.innerHTML=""; return; }
+  if(S.win>=0){ el.innerHTML = `<div class="ph">Game over</div><div class="msg">${pname(S.win)} rules the isles! 🏆</div>
+      <div class="row"><button class="btn primary" data-act="sharewin">Share result</button><button class="btn" data-act="newgame">New game</button></div>`; return; }
+  if(!UI.playing){
+    el.innerHTML = `<div class="ph">Watching</div><div class="msg">It's ${pname(S.cur)}'s turn.</div>
+      <div class="row"><button class="btn primary" data-act="claim">I'm ${esc(P(S.cur).n)} — play</button><button class="btn" data-act="share">Send link</button></div>`; return;
+  }
+  const sel = UI.sel>=0 ? T[UI.sel] : null;
+  let h = steps();
+  if(S.ph==="reinforce"){
+    const inc = income(me()), cards=P(me()).cards.length, canTrade=!!findSet(P(me()).cards);
+    h += `<div class="ph">1 · Reinforce</div>`;
+    if(S.rf>0){
+      h += `<div class="msg">Place <b>${S.rf}</b> troop${S.rf>1?"s":""}. Tap your territories to add one at a time.</div>
+      <div class="row">
+        ${sel?`<button class="btn primary" data-act="placeall">All ${S.rf} → ${esc(sel.name)}</button>`:""}
+        <button class="btn" data-act="undo" ${UI.undo.length?"":"disabled"}>Undo</button>
+        <button class="btn ${canTrade?"primary":""}" data-act="cards">Cards (${cards})${canTrade?" ✓":""}</button>
+      </div>
+      <div class="hint">Income: ${inc.base} from territories${inc.bonus?` + ${inc.bonus} region bonus`:""}.</div>`;
+    } else {
+      h += `<div class="msg">All troops placed.</div>
+      <div class="row"><button class="btn" data-act="undo" ${UI.undo.length?"":"disabled"}>Undo</button>
+        <button class="btn primary" data-act="toattack">Attack →</button></div>`;
+    }
+  } else if(S.ph==="attack" || S.ph==="move"){
+    h += `<div class="ph">2 · Attack</div>`;
+    if(!sel){
+      h += `${diceHtml()}<div class="msg">Tap one of your territories with 2+ troops to attack from.</div>
+        <div class="row"><button class="btn primary" data-act="tofortify">Done attacking →</button></div>`;
+    } else if(UI.tgt<0){
+      h += `${diceHtml()}<div class="msg">From <b>${esc(sel.name)}</b> (${S.a[sel.i]}). Tap a flashing enemy neighbor.</div>
+        <div class="row"><button class="btn ghost" data-act="cancel">Cancel</button><button class="btn" data-act="tofortify">Done attacking →</button></div>`;
+    } else {
+      const tg=T[UI.tgt], an=Math.min(3,S.a[sel.i]-1);
+      h += `<div class="msg"><b>${esc(sel.name)}</b> (${S.a[sel.i]}) ⚔️ ${pname(S.o[tg.i])}'s <b>${esc(tg.name)}</b> (${S.a[tg.i]})</div>${diceHtml()}
+        <div class="row"><button class="btn red" data-act="roll">Roll ${an} 🎲</button><button class="btn primary" data-act="blitz">Blitz ⚡</button><button class="btn ghost" data-act="cancel">Stop</button></div>
+        <div class="hint">Blitz keeps rolling until you win or run out of troops.</div>`;
+    }
+  } else if(S.ph==="fortify"){
+    h += `<div class="ph">3 · Fortify</div>`;
+    h += sel ? `<div class="msg">Move troops from <b>${esc(sel.name)}</b> to a highlighted territory you control.</div>
+      <div class="row"><button class="btn ghost" data-act="cancel">Cancel</button><button class="btn primary" data-act="endturn">End turn</button></div>`
+      : `<div class="msg">Optionally move troops once between connected territories, then end your turn.</div>
+      <div class="row"><button class="btn primary" data-act="endturn">End turn &amp; send</button></div>`;
+  }
+  el.innerHTML = h;
+}
+function render(){ renderTop(); paintMap(); renderPanel(); renderPlayers(); }
+
+/* ===================== SHEETS ===================== */
+function openSheet(html, dismissable=true){
+  $("#sheet").innerHTML = html; $("#overlay").hidden = false; $("#overlay").dataset.dismiss = dismissable?"1":"";
+}
+function closeSheet(){ $("#overlay").hidden = true; }
+$("#overlay").addEventListener("click", e=>{ if(e.target.id==="overlay" && $("#overlay").dataset.dismiss) closeSheet(); });
+
+function logHtml(entries){
+  if(!entries.length) return `<p>Nothing yet.</p>`;
+  return `<ul class="log">${entries.map(([tn,s])=>`<li><span class="tn">T${tn}</span>${fmt(s)}</li>`).join("")}</ul>`;
+}
+function showPass(){
+  const c=S.cur, alive=S.p.filter(p=>!p.out).length;
+  const recent = S.log.filter(([tn])=>tn > S.turn - alive);
+  const mid = S.ph!=="start";
+  openSheet(`<h2>${mid?"Turn in progress":"Your move"}, ${pname(c)}</h2>
+    <p>Turn ${S.turn}. ${mid?"Pick up where you left off.":"Pass the phone or open this on "+esc(P(c).n)+"'s device."}</p>
+    <h3>Since your last turn</h3>${logHtml(recent.slice(-12))}
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-act="claim">I'm ${esc(P(c).n)} — ${mid?"continue":"start turn"}</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" data-act="watch">Just look</button><button class="btn" data-act="share">Not me — send to ${esc(P(c).n)}</button></div>`, false);
+}
+function showSent(prev){
+  const nx=S.cur;
+  openSheet(`<h2>Turn done ✅</h2>
+    <p>Now send the game to ${pname(nx)} so they can take their turn.</p>
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-act="share">Send to ${esc(P(nx).n)} 💬</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" data-act="copy">Copy link</button><button class="btn" data-act="watch">View map</button></div>
+    <div class="hint">Playing on one phone? Hand it over and tap “View map”, then “I'm ${esc(P(nx).n)}”.</div>`, false);
+}
+function showWin(){
+  openSheet(`<h2>🏆 ${pname(S.win)} wins!</h2><p>Every territory has fallen. Total domination in ${S.turn} turns.</p>
+    <div class="row" style="margin-top:14px"><button class="btn primary" data-act="sharewin">Send the result 💬</button></div>
+    <div class="row" style="margin-top:8px"><button class="btn" data-act="newgame">New game</button><button class="btn" data-act="close">View map</button></div>`);
+}
+function openCards(){
+  const pl=P(me()), idx=findSet(pl.cards)||[], canTrade = UI.playing && S.ph==="reinforce" && idx.length;
+  const must = UI.mustTrade && pl.cards.length>=5;
+  openSheet(`<h2>Your cards</h2>
+    <p>Trade 3 matching cards, or one of each, for bonus troops. ⭐ is wild. Next set is worth <b style="color:var(--accent)">+${tradeValue(S.trades)}</b>.</p>
+    ${must?`<p style="color:var(--danger)">You have 5+ cards — you must trade a set now.</p>`:""}
+    <div class="cards">${pl.cards.length?pl.cards.map((c,i)=>`<div class="cardx ${idx.includes(i)?"on":""}"><div>${CARD_ICONS[c]}<small>${CARD_NAMES[c]}</small></div></div>`).join(""):"<p>No cards yet. Conquer at least one territory in a turn to earn one.</p>"}</div>
+    <div class="row">${canTrade?`<button class="btn primary" data-act="trade">Trade for +${tradeValue(S.trades)}</button>`:""}
+    ${must?"":`<button class="btn" data-act="close">Close</button>`}</div>`, !must);
+}
+function amountSheet(title, desc, min, max, def, act){
+  openSheet(`<h2>${title}</h2><p>${desc}</p>
+    <div class="big" id="amt">${def}</div>
+    <input type="range" id="amtR" min="${min}" max="${max}" value="${def}" ${min===max?"disabled":""}>
+    <div class="row" style="margin-top:10px"><button class="btn" data-act="amt" data-v="min">Min</button><button class="btn" data-act="amt" data-v="-1">−</button><button class="btn" data-act="amt" data-v="1">+</button><button class="btn" data-act="amt" data-v="max">Max</button></div>
+    <div class="row" style="margin-top:10px">${act==="fort"?`<button class="btn ghost" data-act="fcancel">Cancel</button>`:""}<button class="btn primary" data-act="${act}">Move</button></div>`, act==="fort");
+  const r=$("#amtR"); r.oninput=()=>{$("#amt").textContent=r.value;};
+}
+function openMove(){
+  const {f,t,min}=S.mv, max=S.a[f]-1;
+  amountSheet(`Captured ${esc(T[t].name)}! 🎉`, `How many troops move in from ${esc(T[f].name)}?`, min, max, max, "mv");
+}
+function openFortify(f,t){
+  UI.tgt = t;
+  amountSheet(`Fortify`, `Move troops from ${esc(T[f].name)} to ${esc(T[t].name)}. This ends your turn.`, 1, S.a[f]-1, S.a[f]-1, "fort");
+}
+function showMenu(){
+  openSheet(`<h2>Menu</h2><div class="menu">
+    ${S?`<button class="btn" data-act="logall">📜 Battle log</button><button class="btn" data-act="regions">🗺️ Regions &amp; bonuses</button>
+    <button class="btn" data-act="copy">🔗 Copy game link</button><button class="btn" data-act="togglenames">🏷️ Toggle territory names</button>`:""}
+    <button class="btn" data-act="rules">📖 How to play</button>
+    <button class="btn" data-act="newgame">✨ New game</button>
+    <button class="btn ghost" data-act="close">Close</button></div>`);
+}
+function showRegions(){
+  openSheet(`<h2>Regions</h2><p>Hold every territory in a region at the start of your turn to earn its bonus.</p>
+    <table class="reg">${REG.map((r,ri)=>{const own=S&&regionTerr[ri].every(t=>S.o[t]===S.o[regionTerr[ri][0]])?S.o[regionTerr[ri][0]]:-1;
+      return `<tr><td><b>${r.n}</b> <small style="color:var(--muted)">(${regionTerr[ri].length})</small>${own>=0?` · ${pname(own)}`:""}<br><small style="color:var(--muted)">${regionTerr[ri].map(t=>esc(T[t].name)).join(", ")}</small></td><td>+${r.b}</td></tr>`;}).join("")}</table>
+    <div class="row" style="margin-top:12px"><button class="btn" data-act="close">Close</button></div>`);
+}
+function showRules(){
+  openSheet(`<h2>How to play</h2><ol class="rules">
+    <li><b>Goal:</b> conquer every territory on the map.</li>
+    <li><b>Reinforce:</b> each turn you get troops = your territories ÷ 3 (min 3), plus region bonuses, plus card sets.</li>
+    <li><b>Attack:</b> pick one of your territories with 2+ troops, then a neighboring enemy. Dashed lines are sea lanes. You roll up to 3 dice, the defender up to 2. Highest dice are compared in pairs — the higher die wins, ties go to the defender.</li>
+    <li><b>Capture:</b> when a territory hits 0 troops it's yours. Move in at least as many troops as dice you rolled.</li>
+    <li><b>Fortify:</b> once per turn, move troops between two of your territories connected through your own land.</li>
+    <li><b>Cards:</b> conquer at least one territory in a turn to earn a card. Trade sets for growing bonuses (4, 6, 8, 10, 12, 15, then +5). Eliminate a player to take their cards.</li>
+    <li><b>Texting:</b> when you end your turn, tap “Send” and pick your group chat or friend. The whole game lives in the link — whoever's turn it is just taps it.</li>
+    <li><b>No take-backs:</b> dice are pre-seeded in the link, so reopening an old link replays the same rolls.</li>
+    </ol><div class="row"><button class="btn" data-act="close">Got it</button></div>`);
+}
+function showSetup(){
+  const names = (showSetup.names ||= ["",""]);
+  openSheet(`<h2>New game</h2><p>2–6 players. Everyone gets random territories, then you take turns by texting the link.</p>
+    ${names.map((n,i)=>`<div class="prow"><span class="dot" style="background:${COLORS[i]}"></span><input type="text" maxlength="14" placeholder="${CNAMES[i]} player name" value="${esc(n)}" data-i="${i}">${names.length>2?`<button class="x" data-act="rmp" data-i="${i}" aria-label="Remove">×</button>`:""}</div>`).join("")}
+    <div class="row" style="margin-top:10px">${names.length<6?`<button class="btn" data-act="addp">+ Add player</button>`:""}<button class="btn primary" data-act="start">Start game</button></div>
+    <div class="hint">The first name goes first. <a href="#" data-act="rules" style="color:var(--accent)">How to play</a></div>`, !!S);
+  $("#sheet").querySelectorAll("input[data-i]").forEach(inp=>inp.oninput=()=>{names[+inp.dataset.i]=inp.value;});
+}
+
+/* ===================== SHARING ===================== */
+async function share(text){
+  await save();
+  if(navigator.share){
+    try{ await navigator.share({title:"Overrun", text, url:link}); return; }
+    catch(e){ if(e && e.name==="AbortError") return; }
+  }
+  copy();
+}
+async function copy(){
+  await save();
+  try{ await navigator.clipboard.writeText(link); toast("Link copied — paste it in your chat"); }
+  catch(e){ prompt("Copy this link:", link); }
+}
+
+/* ===================== INPUT ===================== */
+svg.addEventListener("click", e=>{
+  const g = e.target.closest("g.t"); if(!g || !S || !UI.playing || S.win>=0) return;
+  const t = +g.dataset.t, mine = S.o[t]===me();
+  if(S.ph==="reinforce"){
+    if(!mine) return toast("That's not your territory");
+    if(S.rf<=0) return toast("All troops placed — tap Attack →");
+    UI.sel = t; place(t,1); return;
+  }
+  if(S.ph==="attack"){
+    if(mine){
+      if(t===UI.sel){ flushBattle(); UI.sel=UI.tgt=-1; }
+      else if(S.a[t]<2) toast("Needs at least 2 troops to attack");
+      else { flushBattle(); UI.sel=t; UI.tgt=-1; UI.dice=null; }
+    } else {
+      if(UI.sel<0) toast("First tap one of your territories");
+      else if(!T[UI.sel].adj.has(t)) toast(`${T[t].name} isn't next to ${T[UI.sel].name}`);
+      else { if(UI.tgt!==t) UI.dice=null; UI.tgt=t; }
+    }
+    render(); return;
+  }
+  if(S.ph==="fortify"){
+    if(!mine) return toast("Pick your own territories to fortify");
+    if(UI.sel<0 || t===UI.sel){
+      if(t===UI.sel){ UI.sel=-1; }
+      else if(S.a[t]<2) toast("Needs at least 2 troops to move from");
+      else UI.sel=t;
+    } else if(reachable(UI.sel).has(t)) { openFortify(UI.sel,t); }
+    else if(S.a[t]>=2){ UI.sel=t; } else toast("Not connected through your territory");
+    render();
+  }
+});
+
+document.addEventListener("click", e=>{
+  const b = e.target.closest("[data-act]"); if(!b) return;
+  const act = b.dataset.act; if(b.tagName==="A") e.preventDefault();
+  switch(act){
+    case "close": closeSheet(); if(UI.view==="win") render(); break;
+    case "claim": UI.playing=true; UI.view="play"; closeSheet(); if(S.ph==="start") startTurn(); else if(S.ph==="move") { render(); openMove(); return; } render(); break;
+    case "watch": UI.playing=false; UI.view="play"; closeSheet(); render(); break;
+    case "share": share(`${P(S.cur).n}, it's your turn in Overrun! ⚔️`); break;
+    case "sharewin": share(`${P(S.win).n} won our game of Overrun! 🏆`); break;
+    case "copy": copy(); break;
+    case "placeall": if(UI.sel>=0) place(UI.sel, S.rf); break;
+    case "undo": undoPlace(); break;
+    case "cards": openCards(); break;
+    case "trade": tradeSet(); if(UI.mustTrade) openCards(); else closeSheet(); break;
+    case "toattack": toAttack(); break;
+    case "cancel": flushBattle(); UI.sel=UI.tgt=-1; UI.dice=null; closeSheet(); render(); break;
+    case "roll": { const ok=attackOnce(); if(S.ph==="attack"){ if(!ok && UI.sel>=0 && S.a[UI.sel]<2){ flushBattle(); UI.tgt=-1; toast("Out of troops to attack with"); } save(); render(); } break; }
+    case "blitz": blitz(); break;
+    case "tofortify": toFortify(); break;
+    case "endturn": endTurn(); break;
+    case "amt": { const r=$("#amtR"); let v=+r.value; const d=b.dataset.v;
+      v = d==="min"?+r.min : d==="max"?+r.max : Math.max(+r.min, Math.min(+r.max, v + +d)); r.value=v; $("#amt").textContent=v; break; }
+    case "mv": confirmMove(+$("#amtR").value); break;
+    case "fcancel": UI.tgt=-1; closeSheet(); render(); break;
+    case "fort": doFortify(UI.sel, UI.tgt, +$("#amtR").value); break;
+    case "menu": showMenu(); break;
+    case "logall": openSheet(`<h2>Battle log</h2>${logHtml(S.log.slice().reverse())}<div class="row"><button class="btn" data-act="close">Close</button></div>`); break;
+    case "regions": showRegions(); break;
+    case "togglenames": svg.classList.toggle("nonames"); closeSheet(); break;
+    case "rules": showRules(); break;
+    case "newgame": showSetup.names = S ? S.p.map(p=>p.n) : ["",""]; showSetup(); break;
+    case "addp": showSetup.names.push(""); showSetup(); break;
+    case "rmp": showSetup.names.splice(+b.dataset.i,1); showSetup(); break;
+    case "start": {
+      const names = showSetup.names.map((n,i)=>n.trim() || CNAMES[i]);
+      if(new Set(names.map(n=>n.toLowerCase())).size!==names.length) return toast("Give everyone a different name");
+      newGame(names); UI.playing=false; UI.view="pass"; save().then(()=>{ render(); showPass(); });
+      break; }
+  }
+});
+$("#menuBtn").addEventListener("click", showMenu);
+
+/* ===================== BOOT ===================== */
+async function load(){
+  const m = location.hash.match(/g=([^&]+)/);
+  if(!m){ S=null; render(); showSetup(); return; }
+  try{
+    S = await unpack(m[1]);
+    link = location.href;
+    UI.playing=false; UI.sel=UI.tgt=-1; UI.dice=null; UI.undo=[];
+    render();
+    if(S.win>=0){ UI.view="win"; showWin(); } else { UI.view="pass"; showPass(); }
+  }catch(err){
+    console.error(err); S=null; render();
+    openSheet(`<h2>Hmm, that link looks broken</h2><p>The game link may have been cut off when it was copied. Ask for it to be sent again, or start a new game.</p>
+      <div class="row"><button class="btn primary" data-act="newgame">New game</button></div>`, false);
+  }
+}
+window.addEventListener("hashchange", load);
+buildMap();
+load();
+</script>
+</body>
+</html>
