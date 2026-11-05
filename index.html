@@ -28,16 +28,22 @@ button{font:inherit;color:inherit;border:0;cursor:pointer}
 .iconbtn{background:var(--bg3);border-radius:10px;padding:7px 11px;font-size:14px;font-weight:600}
 .dot{width:12px;height:12px;border-radius:50%;display:inline-block;flex:none;box-shadow:0 0 0 2px rgba(255,255,255,.25)}
 main{flex:1;display:flex;flex-direction:column;max-width:900px;width:100%;margin:0 auto}
-#mapwrap{padding:8px 8px 0}
-#map{width:100%;height:auto;display:block;border-radius:14px;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#mapbox{position:relative;margin:8px 8px 0}
+#mapwrap{overflow:auto;border-radius:14px;-webkit-overflow-scrolling:touch;overscroll-behavior:contain}
+#mapinner{position:relative;width:100%}
+#mapwrap.zoom{max-height:62vh}
+#mapwrap.zoom #mapinner{width:210%}
+#map{position:relative;width:100%;height:auto;display:block;touch-action:manipulation;user-select:none;-webkit-user-select:none}
+#mapbg{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;will-change:transform;contain:strict}
+.zoombtn{position:absolute;right:8px;top:8px;background:rgba(10,16,28,.75);border:1px solid var(--line);border-radius:10px;padding:6px 10px;font-size:13px;font-weight:700;z-index:2;backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px)}
 #map .t{cursor:pointer}
 #map .t polygon{stroke-width:.8;transition:opacity .15s}
 #map .t{transition:opacity .15s}
 #map .t circle.pl{stroke-width:1}
 #map .lane{stroke:#cfe3ff;stroke-opacity:.5;stroke-width:1.6;stroke-dasharray:3 4;stroke-linecap:round}
 #map .lane.in{stroke-opacity:.28}
-#map .lbl{fill:#fff;fill-opacity:.55;font-size:7.5px;font-weight:800;letter-spacing:1px;text-anchor:middle;pointer-events:none}
-#map .lbl.sys{font-size:6.5px;letter-spacing:.5px}
+#map .lbl,#mapbg .lbl{fill:#fff;fill-opacity:.55;font-size:7.5px;font-weight:800;letter-spacing:1px;text-anchor:middle;pointer-events:none}
+#map .lbl.sys,#mapbg .lbl.sys{font-size:6.5px;letter-spacing:.5px}
 #map .spin{transform-box:fill-box;transform-origin:center;animation:spin 6s linear infinite}
 @keyframes spin{to{transform:rotate(360deg)}}
 #map .t.dim{opacity:.38}
@@ -107,8 +113,8 @@ table.reg td:last-child{text-align:right;color:var(--accent);font-weight:700}
 #toast.show{opacity:1;transform:translateX(-50%)}
 .menu .btn{display:block;width:100%;margin:6px 0;text-align:left}
 .hint{font-size:12px;color:var(--muted);margin-top:8px}
-.seg{display:flex;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
-.seg button{flex:1;background:transparent;border-radius:9px;padding:9px 6px;font-weight:700;color:var(--muted);font-size:14px}
+.seg{display:flex;flex-wrap:wrap;background:var(--bg);border:1px solid var(--line);border-radius:12px;padding:3px;gap:3px}
+.seg button{flex:1 1 40%;background:transparent;border-radius:9px;padding:9px 6px;font-weight:700;color:var(--muted);font-size:14px}
 .seg button.on{background:var(--bg3);color:var(--text);box-shadow:0 0 0 1px var(--line)}
 </style>
 </head>
@@ -116,10 +122,11 @@ table.reg td:last-child{text-align:right;color:var(--accent);font-weight:700}
 <header id="top">
   <h1>OVER<span>RUN</span></h1>
   <div id="turninfo"></div>
+  <button class="iconbtn" id="zoomBtn" aria-label="Zoom map">🔍</button>
   <button class="iconbtn" id="menuBtn" aria-label="Menu">☰</button>
 </header>
 <main>
-  <div id="mapwrap"><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div>
+  <div id="mapbox"><div id="mapwrap"><div id="mapinner"><svg id="mapbg" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"></svg><svg id="map" xmlns="http://www.w3.org/2000/svg"></svg></div></div></div>
   <section id="panel"></section>
   <div id="players"></div>
 </main>
@@ -203,11 +210,29 @@ const MAPS = [
   ],
   // hyperspace routes between systems ("system.planet")
   lanes:[["0.1","1.4"],["0.2","1.3"],["1.1","2.4"],["0.2","3.3"],["3.4","4.1"],["3.3","4.2"],["4.3","5.2"],["2.2","5.3"]],
-  worm:[["3.1","2.1"]],
+  worm:[["3.1","2.1","#c77dff"]],
   // obstacles (decoration — the routes above already avoid them)
   hole:{x:380, y:280, r:24},
   belts:[[[506,118],[522,180],[508,252]], [[508,418],[524,490],[506,562]]],
-  nebulas:[{x:70,y:280,rx:68,ry:44,c:"#b06bff"}, {x:600,y:282,rx:44,ry:36,c:"#ff6bb5"}] }
+  nebulas:[{x:70,y:280,rx:68,ry:44,c:"#b06bff"}, {x:600,y:282,rx:44,ry:36,c:"#ff6bb5",label:"ION STORM",lc:"#ffc2e3"}] },
+{ name:"Galaxy", space:true, w:1040, h:770,
+  sys:[
+    {n:"Aurelia", b:3, x:130, y:125, a0:-90, ring:78, star:"#ffd36b", pl:[["Aurel Prime",18,0],["Halcyon",16,1],["Cinder",17,0],["Vesper",15,0],["Lumen",18,0],["Solace",16,0]]},
+    {n:"Kestrel", b:3, x:520, y:115, a0:-90, ring:78, star:"#a8dcff", pl:[["Kestra",17,0],["Zephyr IX",16,0],["Frostfall",18,1],["Tarn",15,0],["Obsidia",17,0],["Glint",15,0]]},
+    {n:"Hollow Drift", b:3, x:910, y:125, a0:-90, ring:78, star:"#cfa8ff", pl:[["Rook",17,0],["Echo",16,0],["Gloam",18,0],["Nadir",15,1],["Wraith",17,0],["Hush",15,0]]},
+    {n:"Ironheart", b:4, x:300, y:385, a0:-90, ring:78, star:"#ffe9a8", pl:[["Anvil",17,0],["Forge",18,0],["Cobalt",15,1],["Rivet",16,0],["Magnet",17,0],["Tungsten",15,0]]},
+    {n:"Silverwake", b:3, x:740, y:385, a0:-90, ring:78, star:"#d7e4ff", pl:[["Argent",17,0],["Comet's Tail",15,0],["Mercure",16,0],["Glimmer",18,1],["Quicksilver",15,0],["Moonrise",17,0]]},
+    {n:"Ember Cluster", b:3, x:130, y:645, a0:-90, ring:78, star:"#ff8a65", pl:[["Pyra",17,0],["Kiln",16,0],["Scoria",17,1],["Brimstone",18,0],["Ash Moon",15,0],["Flint",16,0]]},
+    {n:"Tidewater", b:3, x:520, y:655, a0:-90, ring:78, star:"#7de8d6", pl:[["Marisol",18,1],["Kelpie",15,0],["Undine",17,0],["Brine",16,0],["Coralis",17,0],["Seafoam",15,0]]},
+    {n:"Frontier Verge", b:2, x:910, y:645, a0:-90, ring:78, star:"#ffbe6b", pl:[["Lastlight",17,0],["Waypoint",16,0],["Drift",17,0],["Farhold",18,1],["Outpost K",15,0],["Beacon",16,0]]}
+  ],
+  lanes:[["0.1","1.5"],["0.2","3.0"],["1.1","2.5"],["1.2","2.4"],["1.3","3.1"],["2.4","4.0"],["3.4","5.1"],["3.3","6.5"],
+         ["4.3","6.1"],["4.2","7.5"],["5.2","6.4"],["6.1","7.5"]],
+  worm:[["5.4","2.1","#c77dff"],["0.5","7.2","#4fd1ff"]],
+  hole:{x:520, y:385, r:26},
+  belts:[[[318,110],[334,180],[320,252]], [[322,540],[336,600],[324,662]], [[712,640],[726,700],[714,775]]],
+  nebulas:[{x:80,y:385,rx:70,ry:48,c:"#b06bff"}, {x:965,y:385,rx:62,ry:46,c:"#4f8bff",lc:"#c2dcff"},
+           {x:855,y:268,rx:38,ry:30,c:"#ff6bb5",label:"ION STORM",lc:"#ffc2e3"}] }
 ];
 const COLORS = ["#e5484d","#3e8ef7","#30a46c","#e6a700","#8e4ec6","#f76b15","#8b95a7"];
 const CNAMES = ["Red","Blue","Green","Gold","Purple","Orange","Neutral"];
@@ -248,13 +273,13 @@ function useSpace(M){
   GRID = null; SEA = []; REG = M.sys.map(s=>({n:s.n, b:s.b}));
   T = []; IDX = {};
   M.sys.forEach((s,si)=>s.pl.forEach(([name,r,ring],k)=>{
-    const a = (s.a0 + k*72) * Math.PI/180, id = T.length;
+    const a = (s.a0 + k*360/s.pl.length) * Math.PI/180, id = T.length;
     IDX[si+"."+k] = id;
     T.push({i:id, l:si+"."+k, name, reg:si, x:s.x + s.ring*Math.cos(a), y:s.y + s.ring*Math.sin(a), r, ring, cells:[], adj:new Set()});
   }));
   const link2 = (a,b)=>{ T[IDX[a]].adj.add(IDX[b]); T[IDX[b]].adj.add(IDX[a]); };
   // within a system you orbit to the next planet; the star blocks the middle
-  M.sys.forEach((s,si)=>{ for(let k=0;k<5;k++) link2(si+"."+k, si+"."+((k+1)%5)); });
+  M.sys.forEach((s,si)=>{ const n=s.pl.length; for(let k=0;k<n;k++) link2(si+"."+k, si+"."+((k+1)%n)); });
   for(const [a,b] of M.lanes.concat(M.worm)) link2(a,b);
   LET = T.map(t=>t.l); NT = T.length;
   regionTerr = REG.map((_,ri)=>T.filter(t=>t.reg===ri).map(t=>t.i));
@@ -450,13 +475,14 @@ function endTurn(){
 }
 
 /* ===================== MAP RENDER ===================== */
-const svg = $("#map");
+const svg = $("#map"), bgsvg = $("#mapbg");
 const els = {g:[], ol:[], badge:[], num:[]};
 function finishMap(){
   els.g = [...svg.querySelectorAll("g.t")];
   els.ol = [...svg.querySelectorAll("path.ol")];
   els.badge = [...svg.querySelectorAll("g.badge > g")];
   els.num = els.badge.map(b=>b.querySelector("text"));
+  els.bc = els.badge.map(b=>b.querySelector("circle"));
   if(window.innerWidth < 640) svg.classList.add("nonames");
 }
 function buildSpace(M){
@@ -489,12 +515,13 @@ function buildSpace(M){
       <text x="${s.x}" y="${s.y+20}" class="lbl sys">${esc(s.n.toUpperCase())}</text><text x="${s.x}" y="${s.y+29}" class="lbl sys">+${s.b}</text>`;
   });
   const P2 = id=>T[IDX[id]];
-  M.sys.forEach((s,si)=>{ for(let k=0;k<5;k++){ const a=P2(si+"."+k), b=P2(si+"."+((k+1)%5));
+  M.sys.forEach((s,si)=>{ const n=s.pl.length; for(let k=0;k<n;k++){ const a=P2(si+"."+k), b=P2(si+"."+((k+1)%n));
     lanes += `<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" class="lane in"/>`; } });
   for(const [x,y] of M.lanes){ const a=P2(x), b=P2(y); lanes += `<line x1="${f(a.x)}" y1="${f(a.y)}" x2="${f(b.x)}" y2="${f(b.y)}" class="lane"/>`; }
-  for(const pair of M.worm) for(const id of pair){ const p=P2(id);
-    worm += `<g transform="translate(${f(p.x)} ${f(p.y)})"><circle r="${p.r+9}" fill="none" stroke="#c77dff" stroke-width="2" stroke-dasharray="6 4" class="spin"/>
-      <text y="${-p.r-14}" class="lbl" style="fill:#d9a6ff">WORMHOLE</text></g>`; }
+  for(const [a,b,col="#c77dff"] of M.worm) for(const id of [a,b]){ const p=P2(id);
+    worm += `<g transform="translate(${f(p.x)} ${f(p.y)})"><circle r="${p.r+9}" fill="none" stroke="${col}" stroke-width="2" stroke-dasharray="6 4"/>
+      <circle r="${p.r+13}" fill="none" stroke="${col}" stroke-opacity=".35" stroke-width="1"/>
+      <text y="${-p.r-16}" class="lbl" style="fill:${col}">WORMHOLE</text></g>`; }
   for(const p of T){
     planets += `<g class="t" data-t="${p.i}"><circle cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r+10}" fill="transparent" stroke="none"/>
       <circle class="pl" cx="${f(p.x)}" cy="${f(p.y)}" r="${p.r}"/>
@@ -505,23 +532,31 @@ function buildSpace(M){
     badges += `<g class="badge" transform="translate(${f(p.x)} ${f(p.y)})"><g><circle r="10.5"/><text>1</text></g></g>`;
     names += `<text class="nm" x="${f(p.x)}" y="${f(p.y+p.r+10)}">${esc(p.name)}</text>`;
   }
-  svg.setAttribute("viewBox", `0 0 ${M.w} ${M.h}`);
-  svg.innerHTML = `<defs>
+  let labels = "";
+  for(const pts of M.belts) labels += `<text x="${pts[0][0]+8}" y="${pts[0][1]-8}" class="lbl">ASTEROID BELT</text>`;
+  for(const n of M.nebulas) labels += `<text x="${n.x}" y="${n.y+3}" class="lbl" style="fill:${n.lc||"#e3c2ff"}">${n.label||"NEBULA"}</text>`;
+  // Static backdrop lives in its own SVG layer: it is painted once and never
+  // repainted when the game board above it changes or animates.
+  bgsvg.setAttribute("viewBox", `0 0 ${M.w} ${M.h}`);
+  bgsvg.innerHTML = `<defs>
     <radialGradient id="space" cx="50%" cy="45%" r="75%"><stop offset="0" stop-color="#151a3a"/><stop offset="1" stop-color="#05060f"/></radialGradient>
-    <radialGradient id="shade" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient>
     <radialGradient id="holeGlow"><stop offset=".35" stop-color="#000" stop-opacity=".9"/><stop offset=".55" stop-color="#ff9a3c" stop-opacity=".25"/><stop offset="1" stop-color="#ff9a3c" stop-opacity="0"/></radialGradient>
     <linearGradient id="disk"><stop offset="0" stop-color="#ff6b2c"/><stop offset=".5" stop-color="#ffe0a3"/><stop offset="1" stop-color="#ff6b2c"/></linearGradient>
     <filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="9"/></filter>
   </defs>
   <rect width="${M.w}" height="${M.h}" fill="url(#space)"/>
-  <g fill="#fff">${stars}</g>${bg}<g>${rocks}</g>
-  <text x="514" y="112" class="lbl">ASTEROID BELT</text><text x="70" y="284" class="lbl" style="fill:#e3c2ff">NEBULA</text><text x="600" y="286" class="lbl" style="fill:#ffc2e3">ION STORM</text>
-  ${orbits}<g>${lanes}</g>${suns}${worm}
+  <g fill="#fff">${stars}</g>${bg}<g>${rocks}</g>${labels}${orbits}${suns}`;
+  svg.setAttribute("viewBox", `0 0 ${M.w} ${M.h}`);
+  svg.innerHTML = `<defs>
+    <radialGradient id="shade" cx="35%" cy="30%" r="75%"><stop offset="0" stop-color="#fff" stop-opacity=".45"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".55"/></radialGradient>
+  </defs>
+  <g>${lanes}</g>${worm}
   <g id="cells">${planets}</g><g>${outlines}</g><g>${names}</g><g>${badges}</g>`;
   finishMap();
 }
 function buildMap(){
   if(MAPS[mapId].space) return buildSpace(MAPS[mapId]);
+  bgsvg.innerHTML = "";
   let minX=1e9,minY=1e9,maxX=-1e9,maxY=-1e9;
   const segsTerr=[], segsReg=[], segsCoast=[];
   let groups="", outlines="", badges="", names="", lanes="";
@@ -592,7 +627,7 @@ function paintMap(){
     els.g[i].style.fill = col; els.g[i].style.stroke = col;
     els.g[i].classList.toggle("dim", dimOthers && i!==UI.sel && !ok.has(i));
     els.num[i].textContent = S.a[i];
-    els.badge[i].querySelector("circle").style.stroke = col;
+    els.bc[i].style.stroke = col;
     let cls = "ol";
     if(active){
       if(i===UI.sel) cls+=" sel";
@@ -786,7 +821,7 @@ function showSetup(){
   openSheet(`<h2>New game</h2><p>2–6 players. Territories are dealt at random, then you take turns by texting the link.</p>
     ${names.map((n,i)=>`<div class="prow"><span class="dot" style="background:${COLORS[i]}"></span><input type="text" maxlength="14" placeholder="${CNAMES[i]} player name" value="${esc(n)}" data-i="${i}">${names.length>2?`<button class="x" data-act="rmp" data-i="${i}" aria-label="Remove">×</button>`:""}</div>`).join("")}
     ${names.length<6?`<div class="row" style="margin-top:6px"><button class="btn ghost" data-act="addp">+ Add player</button></div>`:""}
-    <h3>Map</h3>${seg("map",[[0,"Islands · 28"],[1,"Grand · 42"],[2,"Space · 30"]])}
+    <h3>Map</h3>${seg("map",[[0,"Islands · 28"],[1,"Grand · 42"],[2,"Space · 30"],[3,"Galaxy · 48"]])}
     <h3>Starting troops</h3>${seg("draft",[[false,"Random"],[true,"Place them yourselves"]])}
     ${names.length===2?`<h3>Neutral army</h3>${seg("neutral",[[true,"On"],[false,"Off"]])}<div class="hint">A gray army that holds some territory and never attacks. Makes 2-player games less of a race.</div>`:""}
     <div class="row" style="margin-top:16px"><button class="btn primary" data-act="start">Start game</button></div>
@@ -884,6 +919,12 @@ document.addEventListener("click", e=>{
   }
 });
 $("#menuBtn").addEventListener("click", showMenu);
+$("#zoomBtn").addEventListener("click", ()=>{
+  const w=$("#mapwrap"), on=w.classList.toggle("zoom");
+  $("#zoomBtn").textContent = on ? "↩" : "🔍"; $("#zoomBtn").setAttribute("aria-label", on ? "Fit map" : "Zoom map");
+  if(on && UI.sel>=0){ const b=els.badge[UI.sel].getBoundingClientRect(), r=w.getBoundingClientRect(); w.scrollLeft += b.left - r.left - r.width/2; w.scrollTop += b.top - r.top - r.height/2; }
+  else if(on){ w.scrollLeft = (w.scrollWidth - w.clientWidth)/2; }
+});
 
 /* ===================== BOOT ===================== */
 async function load(){
